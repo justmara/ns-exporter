@@ -5,24 +5,30 @@ import (
 	"flag"
 	"fmt"
 	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
+	"github.com/peterbourgon/ff/v3"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"log"
+	"os"
 	"regexp"
 	"strconv"
 )
 
 func main() {
-
-	mongoUri := flag.String("mongo-uri", "", "Mongo-db uri to download from")
-	mongoDb := flag.String("mongo-db", "", "Mongo-db database name")
-	limit := flag.Int64("limit", 100, "number of records to read from mongo-db")
-	skip := flag.Int64("skip", 0, "number of records to skip from mongo-db")
-	influxUri := flag.String("influx-uri", "", "InfluxDb uri to download from")
-	influxToken := flag.String("influx-token", "", "InfluxDb uri to download from")
-
-	flag.Parse()
+	fs := flag.NewFlagSet("ns-exporter", flag.ContinueOnError)
+	var (
+		mongoUri    = fs.String("mongo-uri", "", "Mongo-db uri to download from")
+		mongoDb     = fs.String("mongo-db", "", "Mongo-db database name")
+		limit       = fs.Int64("limit", 0, "number of records to read from mongo-db")
+		skip        = fs.Int64("skip", 0, "number of records to skip from mongo-db")
+		influxUri   = fs.String("influx-uri", "", "InfluxDb uri to download from")
+		influxToken = fs.String("influx-token", "", "InfluxDb uri to download from")
+	)
+	if err := ff.Parse(fs, os.Args[1:], ff.WithEnvVarPrefix("NS_EXPORTER")); err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		os.Exit(1)
+	}
 
 	reg := regexp.MustCompile("Dev: (?P<dev>[-0-9.]+),.*ISF: (?P<isf>[-0-9.]+),.*CR: (?P<cr>[-0-9.]+)")
 	ctx := context.Background()
@@ -55,7 +61,9 @@ func main() {
 
 	opts := options.Find()
 	opts.SetSort(bson.D{{"created_at", -1}})
-	opts.SetLimit(*limit)
+	if *limit > 0 {
+		opts.SetLimit(*limit)
+	}
 	if *skip > 0 {
 		opts.SetSkip(*skip)
 	}

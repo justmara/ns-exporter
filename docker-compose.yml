@@ -1,0 +1,54 @@
+version: '3.9'
+services:
+  grafana-ns:
+    image: grafana/grafana-oss:latest
+    container_name: grafana-ns
+    depends_on:
+      - influx-ns
+    volumes:
+      - data-grafana-ns:/var/lib/grafana
+    networks:
+      - ns-network
+    ports:
+      - 3000:3000
+
+  influx-ns:
+    image: influxdb:latest
+    container_name: influx-ns
+    volumes:
+      - data-influx-ns:/var/lib/influxdb2
+    networks:
+      - ns-network
+    ports:
+      - 8086:8086
+
+  # mongo-ns:
+  #   image: mongo:latest
+  #   container_name: mongo-ns
+  #   volumes:
+  #     - data-mongo-ns:/data/db
+  #   networks:
+  #     - ns-network
+  #   ports:
+  #     - 27017:27017
+
+  ns-exporter:
+    image: ns-exporter:latest
+    container_name: ns-exporter
+    environment:
+      - NS_EXPORTER_MONGO_URI=${NS_EXPORTER_MONGO_URI:-mongodb://mongo-ns:27017}
+      - NS_EXPORTER_MONGO_DB=${NS_EXPORTER_MONGO_DB:-ns}
+      - NS_EXPORTER_INFLUX_URI=${NS_EXPORTER_INFLUX_URI:-http://influx-ns:8086}
+      - NS_EXPORTER_INFLUX_TOKEN=${NS_EXPORTER_INFLUX_TOKEN?err}
+      - NS_EXPORTER_LIMIT=3
+      - NS_EXPORTER_SKIP=0
+    networks:
+      - ns-network
+
+networks:
+  ns-network:
+    driver: bridge
+volumes:
+  data-grafana-ns:
+  data-influx-ns:
+#  data-mongo-ns:
