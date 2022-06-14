@@ -53,3 +53,16 @@ type NsEntry struct {
 		} `json:"battery"`
 	} `json:"pump"`
 }
+
+type NsTreatment struct {
+	CreatedAt time.Time `json:"created_at"`
+	EnteredBy string    `json:"enteredBy"`
+	EventType string    `json:"eventType"`
+	Carbs     int       `json:"carbs,omitempty"`
+	Duration  int       `json:"duration,omitempty"`
+	Insulin   float64   `json:"insulin,omitempty"`
+	IsSMB     bool      `json:"isSMB,omitempty"`
+	Notes     string    `json:"notes,omitempty"`
+	Percent   int       `json:"percent,omitempty"`
+	Rate      float64   `json:"rate,omitempty"`
+}

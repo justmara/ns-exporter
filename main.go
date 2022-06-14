@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
+	"github.com/influxdata/influxdb-client-go/v2/api"
 	"github.com/peterbourgon/ff/v3"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -13,6 +14,7 @@ import (
 	"os"
 	"regexp"
 	"strconv"
+	"time"
 )
 
 func main() {
@@ -30,7 +32,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	reg := regexp.MustCompile("Dev: (?P<dev>[-0-9.]+),.*ISF: (?P<isf>[-0-9.]+),.*CR: (?P<cr>[-0-9.]+)")
 	ctx := context.Background()
 
 	client, err := mongo.NewClient(options.Client().ApplyURI(*mongoUri))
@@ -53,10 +54,19 @@ func main() {
 		log.Fatal(err)
 	}
 
+	mongodb := client.Database(*mongoDb)
+
 	influx := influxdb2.NewClient(*influxUri, *influxToken)
 	writeAPI := influx.WriteAPIBlocking("ns", "ns")
+	ParseDeviceStatuses(mongodb, writeAPI, limit, skip, ctx)
+	ParseTreatments(mongodb, writeAPI, limit, skip, ctx)
+}
 
-	collection := client.Database(*mongoDb).Collection("devicestatus")
+func ParseDeviceStatuses(mongo *mongo.Database, influx api.WriteAPIBlocking, limit *int64, skip *int64, ctx context.Context) {
+
+	reg := regexp.MustCompile("Dev: (?P<dev>[-0-9.]+),.*ISF: (?P<isf>[-0-9.]+),.*CR: (?P<cr>[-0-9.]+)")
+
+	collection := mongo.Collection("devicestatus")
 	filter := bson.D{{"openaps", bson.D{{"$exists", true}}}}
 
 	opts := options.Find()
@@ -123,7 +133,7 @@ func main() {
 			}
 		}
 
-		err = writeAPI.WritePoint(context.Background(), point)
+		err = influx.WritePoint(ctx, point)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -133,5 +143,75 @@ func main() {
 	if err := cur.Err(); err != nil {
 		log.Fatal(err)
 	}
+}
 
+func ParseTreatments(mongo *mongo.Database, influx api.WriteAPIBlocking, limit *int64, skip *int64, ctx context.Context) {
+	collection := mongo.Collection("treatments")
+	filter := bson.D{}
+
+	opts := options.Find()
+	opts.SetSort(bson.D{{"created_at", -1}})
+	if *limit > 0 {
+		opts.SetLimit(*limit)
+	}
+	if *skip > 0 {
+		opts.SetSkip(*skip)
+	}
+
+	cur, err := collection.Find(ctx, filter, opts)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer cur.Close(ctx)
+
+	for cur.Next(ctx) {
+		var entry NsTreatment
+		err := cur.Decode(&entry)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		strtime := cur.Current.Lookup("created_at").StringValue()
+		ptime, err := time.Parse(time.RFC3339, strtime)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		point := influxdb2.NewPointWithMeasurement("treatments").
+			SetTime(ptime)
+		tagName := "type"
+		if entry.Carbs > 0 {
+			point.
+				AddField("carbs", entry.Carbs).
+				AddTag(tagName, "carbs")
+		}
+		if entry.Insulin > 0 {
+			point.
+				AddField("bolus", entry.Insulin).
+				AddTag(tagName, "bolus").
+				AddTag("smb", strconv.FormatBool(entry.IsSMB))
+		}
+		if entry.EventType == "Temp Basal" {
+			point.
+				AddField("duration", entry.Duration).
+				AddField("percent", entry.Percent).
+				AddField("rate", entry.Rate).
+				AddTag(tagName, "tbs")
+		}
+
+		if len(entry.Notes) > 0 {
+			point.AddField("notes", entry.Notes)
+		}
+
+		err = influx.WritePoint(ctx, point)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		fmt.Println("time: ", point.Time(), ", type: ", entry.EventType)
+	}
+
+	if err := cur.Err(); err != nil {
+		log.Fatal(err)
+	}
 }
