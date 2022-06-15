@@ -25,7 +25,7 @@ func main() {
 		limit       = fs.Int64("limit", 0, "number of records to read from mongo-db")
 		skip        = fs.Int64("skip", 0, "number of records to skip from mongo-db")
 		influxUri   = fs.String("influx-uri", "", "InfluxDb uri to download from")
-		influxToken = fs.String("influx-token", "", "InfluxDb uri to download from")
+		influxToken = fs.String("influx-token", "", "InfluxDb access token")
 	)
 	if err := ff.Parse(fs, os.Args[1:], ff.WithEnvVarPrefix("NS_EXPORTER")); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
