@@ -198,14 +198,22 @@ func ParseTreatments(mongo *mongo.Database, influx api.WriteAPIBlocking, limit *
 				AddField("rate", entry.Rate).
 				AddTag(tagName, "tbs")
 		}
-
+		if entry.EventType == "Temporary Target" {
+			point.
+				AddField("duration", entry.Duration).
+				AddField("target_top", entry.TargetTop).
+				AddField("target_bottom", entry.TargetBottom).
+				AddField("units", entry.Units).
+				AddField("reason", entry.Reason).
+				AddTag(tagName, "tt")
+		}
 		if len(entry.Notes) > 0 {
 			point.AddField("notes", entry.Notes)
 		}
 
 		err = influx.WritePoint(ctx, point)
 		if err != nil {
-			log.Fatal(err)
+			fmt.Println(err)
 		}
 
 		fmt.Println("time: ", point.Time(), ", type: ", entry.EventType)

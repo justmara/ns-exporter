@@ -1,10 +1,67 @@
 {
+  "__inputs": [
+    {
+      "name": "DS_INFLUXDB",
+      "label": "InfluxDB",
+      "description": "",
+      "type": "datasource",
+      "pluginId": "influxdb",
+      "pluginName": "InfluxDB"
+    },
+    {
+      "name": "DS_INFLUXDB_QL",
+      "label": "InfluxDB QL",
+      "description": "",
+      "type": "datasource",
+      "pluginId": "influxdb",
+      "pluginName": "InfluxDB"
+    }
+  ],
+  "__elements": [],
+  "__requires": [
+    {
+      "type": "grafana",
+      "id": "grafana",
+      "name": "Grafana",
+      "version": "9.0.0"
+    },
+    {
+      "type": "datasource",
+      "id": "influxdb",
+      "name": "InfluxDB",
+      "version": "1.0.0"
+    },
+    {
+      "type": "panel",
+      "id": "piechart",
+      "name": "Pie chart",
+      "version": ""
+    },
+    {
+      "type": "panel",
+      "id": "stat",
+      "name": "Stat",
+      "version": ""
+    },
+    {
+      "type": "panel",
+      "id": "table",
+      "name": "Table",
+      "version": ""
+    },
+    {
+      "type": "panel",
+      "id": "timeseries",
+      "name": "Time series",
+      "version": ""
+    }
+  ],
   "annotations": {
     "list": [
       {
         "datasource": {
           "type": "influxdb",
-          "uid": "PgmI-GC7k"
+          "uid": "${DS_INFLUXDB}"
         },
         "enable": true,
         "iconColor": "#ff983047",
@@ -16,7 +73,7 @@
         },
         "name": " carbs",
         "target": {
-          "query": "from(bucket: \"ns\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"treatments\")\n  |> filter(fn: (r) => r[\"type\"] == \"carbs\")\n  |> filter(fn: (r) => r[\"_field\"] == \"notes\")",
+          "query": "from(bucket: \"ns\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"treatments\")\n  |> filter(fn: (r) => r[\"_field\"] == \"notes\")",
           "refId": "Anno"
         }
       },
@@ -43,14 +100,14 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 2,
-  "id": 1,
+  "id": null,
   "links": [],
   "liveNow": false,
   "panels": [
     {
       "datasource": {
         "type": "influxdb",
-        "uid": "PgmI-GC7k"
+        "uid": "${DS_INFLUXDB}"
       },
       "fieldConfig": {
         "defaults": {
@@ -81,7 +138,7 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 9,
+        "h": 5,
         "w": 3,
         "x": 0,
         "y": 0
@@ -106,7 +163,7 @@
         {
           "datasource": {
             "type": "influxdb",
-            "uid": "PgmI-GC7k"
+            "uid": "${DS_INFLUXDB}"
           },
           "query": "from(bucket: \"ns\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"openaps\")\n  |> filter(fn: (r) => r[\"_field\"] == \"bg\" )\n  |> aggregateWindow(every: 1m, fn: last, createEmpty: false)\n  |> map(fn: (r) => ({ r with \n    _value: r._value/18.0,\n    _measurement: \"\"\n    }))",
           "refId": "A"
@@ -128,8 +185,7 @@
           },
           "custom": {
             "axisLabel": "",
-            "axisPlacement": "hidden",
-            "axisSoftMax": 12,
+            "axisPlacement": "left",
             "barAlignment": 0,
             "drawStyle": "line",
             "fillOpacity": 0,
@@ -157,7 +213,6 @@
           },
           "mappings": [],
           "max": 14,
-          "min": 2,
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -205,6 +260,10 @@
               {
                 "id": "min",
                 "value": 0
+              },
+              {
+                "id": "custom.axisPlacement",
+                "value": "hidden"
               }
             ]
           },
@@ -279,6 +338,14 @@
               {
                 "id": "decimals",
                 "value": 1
+              },
+              {
+                "id": "custom.hideFrom",
+                "value": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                }
               }
             ]
           },
@@ -342,6 +409,22 @@
               {
                 "id": "custom.lineInterpolation",
                 "value": "smooth"
+              },
+              {
+                "id": "custom.axisPlacement",
+                "value": "left"
+              },
+              {
+                "id": "custom.hideFrom",
+                "value": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                }
+              },
+              {
+                "id": "min",
+                "value": 2
               },
               {
                 "id": "custom.axisPlacement",
@@ -412,8 +495,16 @@
                 "value": {
                   "legend": false,
                   "tooltip": false,
-                  "viz": true
+                  "viz": false
                 }
+              },
+              {
+                "id": "custom.axisPlacement",
+                "value": "hidden"
+              },
+              {
+                "id": "min",
+                "value": 2
               }
             ]
           },
@@ -451,6 +542,10 @@
               {
                 "id": "custom.axisPlacement",
                 "value": "hidden"
+              },
+              {
+                "id": "min",
+                "value": 2
               }
             ]
           },
@@ -563,16 +658,16 @@
         {
           "datasource": {
             "type": "influxdb",
-            "uid": "PgmI-GC7k"
+            "uid": "${DS_INFLUXDB}"
           },
           "hide": false,
-          "query": "from(bucket: \"ns\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"openaps\")\n  |> filter(fn: (r) => r._value > 0)\n  |> filter(fn: (r) => r[\"_field\"] == \"bg\" \n    or r[\"_field\"] == \"iob\"\n    or r[\"_field\"] == \"bolus\" \n//    or r[\"_field\"] == \"insulin_req\"\n    or r[\"_field\"] == \"bg\" \n    or r[\"_field\"] == \"isf\" \n    or r[\"_field\"] == \"target_bg\"\n    or r[\"_field\"] == \"activity\")\n  |> aggregateWindow(every: 1m, fn: last, createEmpty: false)\n  |> map(fn: (r) => ({ r with \n    _field: if r._field == \"bolus\" then \"bolus smb\" else r._field,\n    _value: if r._field == \"bg\" or r._field == \"target_bg\" then r._value/18.0 else if r._field == \"activity\" then r._value*500.0 else r._value,\n    _measurement: \"\"\n    }))",
+          "query": "from(bucket: \"ns\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"openaps\")\n  |> filter(fn: (r) => r._value > 0)\n  |> filter(fn: (r) => r[\"_field\"] == \"bg\" \n    or r[\"_field\"] == \"iob\"\n    or r[\"_field\"] == \"bolus\" \n    or r[\"_field\"] == \"bg\" \n    or r[\"_field\"] == \"isf\" \n    or r[\"_field\"] == \"target_bg\"\n    or r[\"_field\"] == \"activity\")\n  |> aggregateWindow(every: 1m, fn: last, createEmpty: false)\n  |> map(fn: (r) => ({ r with \n    _field: if r._field == \"bolus\" then \"bolus smb\" else r._field,\n    _value: if r._field == \"bg\" or r._field == \"target_bg\" then r._value/18.0 else if r._field == \"activity\" then r._value*500.0 else r._value,\n    _measurement: \"\"\n    }))",
           "refId": "A"
         },
         {
           "datasource": {
             "type": "influxdb",
-            "uid": "PgmI-GC7k"
+            "uid": "${DS_INFLUXDB}"
           },
           "hide": false,
           "query": "from(bucket: \"ns\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"treatments\")\n  |> filter(fn: (r) => r[\"type\"] == \"bolus\")\n  |> filter(fn: (r) => r[\"_field\"] == \"bolus\")\n  |> filter(fn: (r) => r[\"smb\"] == \"false\")\n  |> drop(columns: [\"smb\", \"type\"])\n  |> map(fn: (r) => ({ r with _measurement: \"\" }))",
@@ -581,7 +676,7 @@
         {
           "datasource": {
             "type": "influxdb",
-            "uid": "PgmI-GC7k"
+            "uid": "${DS_INFLUXDB}"
           },
           "hide": false,
           "query": "from(bucket: \"ns\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"treatments\")\n  |> filter(fn: (r) => r[\"type\"] == \"tbs\" and r[\"_field\"] == \"percent\")\n  |> map(fn: (r) => ({ _time: r._time, \"basal\": (r._value + 100)*(-1)}))",
@@ -594,7 +689,7 @@
     {
       "datasource": {
         "type": "influxdb",
-        "uid": "i8V9EMC7z"
+        "uid": "${DS_INFLUXDB_QL}"
       },
       "fieldConfig": {
         "defaults": {
@@ -723,7 +818,7 @@
           "alias": "pred_cob",
           "datasource": {
             "type": "influxdb",
-            "uid": "i8V9EMC7z"
+            "uid": "${DS_INFLUXDB_QL}"
           },
           "groupBy": [
             {
@@ -773,7 +868,7 @@
           "alias": "$col",
           "datasource": {
             "type": "influxdb",
-            "uid": "i8V9EMC7z"
+            "uid": "${DS_INFLUXDB_QL}"
           },
           "groupBy": [],
           "hide": false,
@@ -804,7 +899,7 @@
           "alias": "pred_uam",
           "datasource": {
             "type": "influxdb",
-            "uid": "i8V9EMC7z"
+            "uid": "${DS_INFLUXDB_QL}"
           },
           "groupBy": [
             {
@@ -875,116 +970,209 @@
     {
       "datasource": {
         "type": "influxdb",
-        "uid": "PgmI-GC7k"
+        "uid": "${DS_INFLUXDB}"
       },
       "fieldConfig": {
         "defaults": {
           "color": {
-            "mode": "palette-classic"
+            "mode": "thresholds"
           },
-          "custom": {
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
+          "decimals": 1,
+          "mappings": [
+            {
+              "options": {
+                "from": 0.05,
+                "result": {
+                  "index": 0,
+                  "text": "🛫"
+                },
+                "to": 0.4
+              },
+              "type": "range"
+            },
+            {
+              "options": {
+                "from": -0.39,
+                "result": {
+                  "index": 1,
+                  "text": "🛬"
+                },
+                "to": -0.05
+              },
+              "type": "range"
+            },
+            {
+              "options": {
+                "from": -0.05,
+                "result": {
+                  "index": 2,
+                  "text": "🐌"
+                },
+                "to": 0.05
+              },
+              "type": "range"
+            },
+            {
+              "options": {
+                "from": -100,
+                "result": {
+                  "index": 3,
+                  "text": "⬇"
+                },
+                "to": -0.4
+              },
+              "type": "range"
+            },
+            {
+              "options": {
+                "from": 0.31,
+                "result": {
+                  "index": 4,
+                  "text": "🚀"
+                },
+                "to": 10
+              },
+              "type": "range"
             }
-          },
-          "mappings": []
-        },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "normal"
-            },
-            "properties": [
+          ],
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
               {
-                "id": "color",
-                "value": {
-                  "fixedColor": "green",
-                  "mode": "fixed"
-                }
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "high"
-            },
-            "properties": [
+                "color": "dark-red",
+                "value": null
+              },
               {
-                "id": "color",
-                "value": {
-                  "fixedColor": "yellow",
-                  "mode": "fixed"
-                }
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "low"
-            },
-            "properties": [
+                "color": "green",
+                "value": 4
+              },
               {
-                "id": "color",
-                "value": {
-                  "fixedColor": "semi-dark-red",
-                  "mode": "fixed"
-                }
+                "color": "#EAB839",
+                "value": 9
               }
             ]
           }
-        ]
+        },
+        "overrides": []
       },
       "gridPos": {
-        "h": 10,
+        "h": 4,
         "w": 3,
         "x": 0,
-        "y": 9
+        "y": 5
       },
-      "id": 10,
+      "id": 22,
       "options": {
-        "displayLabels": [],
-        "legend": {
-          "displayMode": "table",
-          "placement": "bottom",
-          "values": [
-            "percent"
-          ]
-        },
-        "pieType": "pie",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
         "reduceOptions": {
           "calcs": [
-            "lastNotNull"
+            "last"
           ],
-          "fields": "/^_value$/",
-          "values": true
+          "fields": "/^value$/",
+          "values": false
         },
-        "tooltip": {
-          "mode": "none",
-          "sort": "none"
-        }
+        "text": {},
+        "textMode": "auto"
       },
+      "pluginVersion": "9.0.0",
       "targets": [
         {
           "datasource": {
             "type": "influxdb",
-            "uid": "PgmI-GC7k"
+            "uid": "${DS_INFLUXDB}"
           },
-          "query": "from(bucket: \"ns\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"openaps\")\n  |> filter(fn: (r) => r[\"_field\"] == \"bg\")\n  |> keep(columns: [\"_value\"])\n  |> map(fn: (r) => ({_value: r._value, label: if r._value < 70 then \"low\" else if r._value < 180 then \"normal\" else \"high\" }))\n  |> group(columns: [\"label\"])\n  |> count()\n  |> group()",
+          "query": "from(bucket: \"ns\")\n  |> range(start: -15m, stop: now())\n  |> filter(fn: (r) => r[\"_measurement\"] == \"openaps\")\n  |> filter(fn: (r) => r[\"_field\"] == \"bg\")\n  |> limit(n: 2)\n  |> derivative(unit: 5m)\n  |> map(fn: (r) => ({ value: r._value / 18.0}))",
           "refId": "A"
         }
       ],
-      "title": "time in range",
-      "type": "piechart"
+      "title": "trend",
+      "type": "stat"
     },
     {
       "datasource": {
         "type": "influxdb",
-        "uid": "PgmI-GC7k"
+        "uid": "${DS_INFLUXDB}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "left",
+            "displayMode": "color-text",
+            "inspect": false,
+            "width": 85
+          },
+          "decimals": 1,
+          "mappings": [],
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "dark-red",
+                "value": null
+              },
+              {
+                "color": "semi-dark-yellow",
+                "value": -0.5
+              },
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "#EAB839",
+                "value": 0.5
+              },
+              {
+                "color": "semi-dark-red",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 3,
+        "w": 3,
+        "x": 0,
+        "y": 9
+      },
+      "id": 23,
+      "options": {
+        "footer": {
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
+        "showHeader": false
+      },
+      "pluginVersion": "9.0.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "${DS_INFLUXDB}"
+          },
+          "query": "import \"experimental/aggregate\"\n\nt1 = from(bucket: \"ns\")\n  |> range(start: -15m, stop: now())\n  |> filter(fn: (r) => r[\"_measurement\"] == \"openaps\")\n  |> filter(fn: (r) => r[\"_field\"] == \"bg\")\n  |> limit(n: 2)\n  |> derivative(unit: 5m)\n  |> map(fn: (r) => ({ index: 0, name: \"Ⲇ 5m\", value: r._value / 18.0}))\n\nt2 = from(bucket: \"ns\")\n  |> range(start: -30m, stop: now())\n  |> filter(fn: (r) => r[\"_measurement\"] == \"openaps\")\n  |> filter(fn: (r) => r[\"_field\"] == \"bg\")\n  |> limit(n: 3)\n  |> derivative(unit: 5m)\n  |> movingAverage(n: 3)\n  |> map(fn: (r) => ({ index: 1, name: \"Ⲇ 15m\", value: r._value / 18.0}))\n\nt3 = from(bucket: \"ns\")\n  |> range(start: -45m, stop: now())\n  |> filter(fn: (r) => r[\"_measurement\"] == \"openaps\")\n  |> filter(fn: (r) => r[\"_field\"] == \"bg\")\n  |> limit(n: 8)\n  |> derivative(unit: 5m)\n  |> movingAverage(n: 8)\n  |> map(fn: (r) => ({ index: 2, name: \"Ⲇ 40m\", value: r._value / 18.0}))\n\nunion(tables: [t3, t2, t1])\n  |> sort(columns: [\"index\"])\n  |> drop(columns: [\"index\"])",
+          "refId": "A"
+        }
+      ],
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "${DS_INFLUXDB}"
       },
       "fieldConfig": {
         "defaults": {
@@ -1091,7 +1279,7 @@
         {
           "datasource": {
             "type": "influxdb",
-            "uid": "PgmI-GC7k"
+            "uid": "${DS_INFLUXDB}"
           },
           "hide": false,
           "query": "from(bucket: \"ns\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"openaps\")\n  |> filter(fn: (r) => r[\"_field\"] == \"cob\" or r[\"_field\"] == \"cr\")\n  |> aggregateWindow(every: 1m, fn: last, createEmpty: false)\n  |> map(fn: (r) => ({ r with _measurement: \"\" }))",
@@ -1104,7 +1292,7 @@
     {
       "datasource": {
         "type": "influxdb",
-        "uid": "PgmI-GC7k"
+        "uid": "${DS_INFLUXDB}"
       },
       "fieldConfig": {
         "defaults": {
@@ -1161,7 +1349,7 @@
         ]
       },
       "gridPos": {
-        "h": 10,
+        "h": 13,
         "w": 9,
         "x": 15,
         "y": 9
@@ -1183,9 +1371,9 @@
         {
           "datasource": {
             "type": "influxdb",
-            "uid": "PgmI-GC7k"
+            "uid": "${DS_INFLUXDB}"
           },
-          "query": "from(bucket: \"ns\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"treatments\")\n  |> filter(fn: (r) => r[\"_field\"] == \"carbs\" or r[\"_field\"] == \"notes\")\n  |> pivot(rowKey: [\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> sort(columns: [\"_time\"], desc: true)\n  |> group()\n  |> map(fn: (r) => ({ time: time(v:r._time), carbs: r.carbs, notes: r.notes }))",
+          "query": "from(bucket: \"ns\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"treatments\")\n  |> filter(fn: (r) => r[\"_field\"] == \"carbs\" or r[\"_field\"] == \"notes\")\n  |> pivot(rowKey: [\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> sort(columns: [\"_time\"], desc: true)\n  |> group()\n  |> sort(columns: [\"_time\"], desc: true)\n  |> map(fn: (r) => ({ time: time(v:r._time), carbs: r.carbs, notes: r.notes }))",
           "refId": "A"
         }
       ],
@@ -1195,7 +1383,116 @@
     {
       "datasource": {
         "type": "influxdb",
-        "uid": "PgmI-GC7k"
+        "uid": "${DS_INFLUXDB}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          },
+          "mappings": []
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "normal"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "green",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "high"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "yellow",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "low"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "semi-dark-red",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 3,
+        "x": 0,
+        "y": 12
+      },
+      "id": 10,
+      "options": {
+        "displayLabels": [],
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "values": [
+            "percent"
+          ]
+        },
+        "pieType": "pie",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/^_value$/",
+          "values": true
+        },
+        "tooltip": {
+          "mode": "none",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "${DS_INFLUXDB}"
+          },
+          "query": "from(bucket: \"ns\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"openaps\")\n  |> filter(fn: (r) => r[\"_field\"] == \"bg\")\n  |> keep(columns: [\"_value\"])\n  |> map(fn: (r) => ({_value: r._value, label: if r._value < 70 then \"low\" else if r._value < 180 then \"normal\" else \"high\" }))\n  |> group(columns: [\"label\"])\n  |> count()\n  |> group()",
+          "refId": "A"
+        }
+      ],
+      "title": "time in range",
+      "type": "piechart"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "${DS_INFLUXDB}"
       },
       "fieldConfig": {
         "defaults": {
@@ -1265,7 +1562,7 @@
         ]
       },
       "gridPos": {
-        "h": 5,
+        "h": 4,
         "w": 12,
         "x": 3,
         "y": 14
@@ -1286,7 +1583,7 @@
         {
           "datasource": {
             "type": "influxdb",
-            "uid": "PgmI-GC7k"
+            "uid": "${DS_INFLUXDB}"
           },
           "hide": false,
           "query": "from(bucket: \"ns\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"openaps\")\n  |> filter(fn: (r) => r[\"_field\"] == \"dev\" or r[\"_field\"] == \"cob\")\n  |> aggregateWindow(every: 5m, fn: last, createEmpty: false)\n  |> pivot(rowKey: [\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> map(fn: (r) => ({ r with _measurement: \"\", is_cob : if r.cob > 0 then 1 else 0, _value: r.dev }))\n  |> filter(fn: (r) => r.is_cob <= 0)\n  |> map(fn: (r) => ({ _time: r._time, dev: r.dev }))",
@@ -1295,7 +1592,7 @@
         {
           "datasource": {
             "type": "influxdb",
-            "uid": "PgmI-GC7k"
+            "uid": "${DS_INFLUXDB}"
           },
           "hide": false,
           "query": "from(bucket: \"ns\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"openaps\")\n  |> filter(fn: (r) => r[\"_field\"] == \"dev\" or r[\"_field\"] == \"cob\")\n  |> aggregateWindow(every: 5m, fn: last, createEmpty: false)\n  |> pivot(rowKey: [\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> map(fn: (r) => ({ r with _measurement: \"\", is_cob : if r.cob > 0 then 1 else 0, _value: r.dev }))\n  |> filter(fn: (r) => r.is_cob > 0)\n  |> map(fn: (r) => ({ _time: r._time, dev_cob: r.dev }))",
@@ -1306,19 +1603,107 @@
       "type": "timeseries"
     },
     {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "${DS_INFLUXDB}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "fixedColor": "blue",
+            "mode": "thresholds"
+          },
+          "custom": {
+            "axisLabel": "",
+            "axisPlacement": "hidden",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 35,
+            "gradientMode": "scheme",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "smooth",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "line"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "dark-yellow",
+                "value": null
+              },
+              {
+                "color": "blue",
+                "value": 0
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 12,
+        "x": 3,
+        "y": 18
+      },
+      "id": 21,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "hidden",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "${DS_INFLUXDB}"
+          },
+          "hide": false,
+          "query": "from(bucket: \"ns\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"openaps\")\n  |> filter(fn: (r) => r[\"_field\"] == \"iob\")",
+          "refId": "B"
+        }
+      ],
+      "title": "basal iob",
+      "type": "timeseries"
+    },
+    {
       "collapsed": true,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 19
+        "y": 22
       },
       "id": 14,
       "panels": [
         {
           "datasource": {
             "type": "influxdb",
-            "uid": "PgmI-GC7k"
+            "uid": "${DS_INFLUXDB}"
           },
           "fieldConfig": {
             "defaults": {
@@ -1360,8 +1745,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "blue",
-                    "value": null
+                    "color": "blue"
                   }
                 ]
               }
@@ -1390,7 +1774,7 @@
             {
               "datasource": {
                 "type": "influxdb",
-                "uid": "PgmI-GC7k"
+                "uid": "${DS_INFLUXDB}"
               },
               "query": "from(bucket: \"ns\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"openaps\")\n  |> filter(fn: (r) => r[\"_field\"] == \"iob\")\n  |> aggregateWindow(every: 1m, fn: last, createEmpty: false)",
               "refId": "A"
@@ -1398,7 +1782,7 @@
             {
               "datasource": {
                 "type": "influxdb",
-                "uid": "PgmI-GC7k"
+                "uid": "${DS_INFLUXDB}"
               },
               "hide": false,
               "query": "from(bucket: \"ns\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"openaps\")\n  |> filter(fn: (r) => r[\"_field\"] == \"insulin_req\")\n  |> aggregateWindow(every: 1m, fn: last, createEmpty: false)",
@@ -1411,7 +1795,7 @@
         {
           "datasource": {
             "type": "influxdb",
-            "uid": "i8V9EMC7z"
+            "uid": "${DS_INFLUXDB_QL}"
           },
           "fieldConfig": {
             "defaults": {
@@ -1452,8 +1836,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "dark-red",
-                    "value": null
+                    "color": "dark-red"
                   },
                   {
                     "color": "green",
@@ -1567,7 +1950,7 @@
               "alias": "$col",
               "datasource": {
                 "type": "influxdb",
-                "uid": "i8V9EMC7z"
+                "uid": "${DS_INFLUXDB_QL}"
               },
               "groupBy": [],
               "measurement": "openaps",
@@ -1599,7 +1982,7 @@
               "alias": "$col",
               "datasource": {
                 "type": "influxdb",
-                "uid": "i8V9EMC7z"
+                "uid": "${DS_INFLUXDB_QL}"
               },
               "groupBy": [],
               "hide": false,
@@ -1624,7 +2007,7 @@
               "alias": "$col",
               "datasource": {
                 "type": "influxdb",
-                "uid": "i8V9EMC7z"
+                "uid": "${DS_INFLUXDB_QL}"
               },
               "groupBy": [],
               "hide": false,
@@ -1649,7 +2032,7 @@
               "alias": "$col",
               "datasource": {
                 "type": "influxdb",
-                "uid": "i8V9EMC7z"
+                "uid": "${DS_INFLUXDB_QL}"
               },
               "groupBy": [],
               "hide": false,
@@ -1892,7 +2275,7 @@
             {
               "datasource": {
                 "type": "influxdb",
-                "uid": "PgmI-GC7k"
+                "uid": "${DS_INFLUXDB}"
               },
               "hide": false,
               "query": "from(bucket: \"ns\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"treatments\")\n  |> filter(fn: (r) => r[\"_field\"] == \"tbs\")\n  |> map(fn: (r) => ({ r with \n    _measurement: \"\"\n    }))",
@@ -1912,7 +2295,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 20
+        "y": 23
       },
       "id": 12,
       "panels": [],
@@ -1935,6 +2318,6 @@
   "timezone": "",
   "title": "Nightscout data",
   "uid": "8XquEMC7z",
-  "version": 62,
+  "version": 77,
   "weekStart": ""
 }

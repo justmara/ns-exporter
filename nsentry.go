@@ -55,14 +55,18 @@ type NsEntry struct {
 }
 
 type NsTreatment struct {
-	CreatedAt time.Time `json:"created_at"`
-	EnteredBy string    `json:"enteredBy"`
-	EventType string    `json:"eventType"`
-	Carbs     int       `json:"carbs,omitempty"`
-	Duration  int       `json:"duration,omitempty"`
-	Insulin   float64   `json:"insulin,omitempty"`
-	IsSMB     bool      `json:"isSMB,omitempty"`
-	Notes     string    `json:"notes,omitempty"`
-	Percent   int       `json:"percent,omitempty"`
-	Rate      float64   `json:"rate,omitempty"`
+	CreatedAt    time.Time `json:"created_at"`
+	EnteredBy    string    `json:"enteredBy"`
+	EventType    string    `json:"eventType"`
+	Carbs        int       `json:"carbs,omitempty"`
+	Duration     int       `json:"duration,omitempty"`
+	Insulin      float64   `json:"insulin,omitempty"`
+	IsSMB        bool      `json:"isSMB,omitempty"`
+	Notes        string    `json:"notes,omitempty"`
+	Percent      int       `json:"percent,omitempty"`
+	TargetTop    float64   `json:"targetTop,omitempty"`
+	TargetBottom float64   `json:"targetBottom,omitempty"`
+	Reason       string    `json:"reason,omitempty"`
+	Rate         float64   `json:"rate,omitempty"`
+	Units        string    `json:"units,omitempty"`
 }
