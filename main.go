@@ -5,17 +5,21 @@ import (
 	"flag"
 	"fmt"
 	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
-	"github.com/influxdata/influxdb-client-go/v2/api"
+	"github.com/influxdata/influxdb-client-go/v2/api/write"
 	"github.com/peterbourgon/ff/v3"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/bsontype"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"log"
 	"os"
 	"regexp"
 	"strconv"
+	"sync"
 	"time"
 )
+
+var wg sync.WaitGroup
 
 func main() {
 	fs := flag.NewFlagSet("ns-exporter", flag.ContinueOnError)
@@ -55,14 +59,48 @@ func main() {
 	}
 
 	mongodb := client.Database(*mongoDb)
+	influx := make(chan write.Point)
 
-	influx := influxdb2.NewClient(*influxUri, *influxToken)
-	writeAPI := influx.WriteAPIBlocking("ns", "ns")
-	ParseDeviceStatuses(mongodb, writeAPI, limit, skip, ctx)
-	ParseTreatments(mongodb, writeAPI, limit, skip, ctx)
+	wg.Add(2)
+
+	go parseDeviceStatuses(mongodb, influx, limit, skip, ctx)
+	go parseTreatments(mongodb, influx, limit, skip, ctx)
+
+	var wgInflux = &sync.WaitGroup{}
+	go func() {
+		wgInflux.Add(1)
+		defer wgInflux.Done()
+		var count = 0
+		writeAPI := influxdb2.NewClient(*influxUri, *influxToken).WriteAPIBlocking("ns", "ns")
+
+		for point := range influx {
+
+			if len(point.FieldList()) == 0 && len(point.TagList()) == 0 {
+
+				fmt.Println("empty point for time: ", point.Time(), " of type: ", point.Name())
+				continue
+			}
+
+			err = writeAPI.WritePoint(ctx, &point)
+			count++
+			if err != nil {
+
+				fmt.Println("error writing: ", point.Time(), ", name: ", point.Name())
+				log.Fatal(err)
+			}
+		}
+
+		fmt.Println("total writen: ", count)
+
+	}()
+
+	wg.Wait()
+	close(influx)
+	wgInflux.Wait()
 }
 
-func ParseDeviceStatuses(mongo *mongo.Database, influx api.WriteAPIBlocking, limit *int64, skip *int64, ctx context.Context) {
+func parseDeviceStatuses(mongo *mongo.Database, influx chan write.Point, limit *int64, skip *int64, ctx context.Context) {
+	defer wg.Done()
 
 	reg := regexp.MustCompile("Dev: (?P<dev>[-0-9.]+),.*ISF: (?P<isf>[-0-9.]+),.*CR: (?P<cr>[-0-9.]+)")
 
@@ -84,10 +122,14 @@ func ParseDeviceStatuses(mongo *mongo.Database, influx api.WriteAPIBlocking, lim
 	}
 	defer cur.Close(ctx)
 
+	var count = 0
+	var lastbg = 0.0
+	var lasttick float64 = 0
 	for cur.Next(ctx) {
 		var entry NsEntry
 		err := cur.Decode(&entry)
 		if err != nil {
+			fmt.Println(cur.Current.String())
 			log.Fatal(err)
 		}
 
@@ -97,8 +139,32 @@ func ParseDeviceStatuses(mongo *mongo.Database, influx api.WriteAPIBlocking, lim
 			AddField("activity", entry.OpenAps.IOB.Activity).
 			SetTime(entry.OpenAps.IOB.Time)
 		if entry.OpenAps.Suggested.Bg > 0 {
+			field := cur.Current.Lookup("openaps", "suggested", "tick")
+
+			var tick float64 = 0
+			if field.Type == bsontype.String {
+				tick, err = strconv.ParseFloat(field.StringValue(), 32)
+			}
+			if field.Type == bsontype.Int32 {
+				tick = float64(field.AsInt64())
+			}
+
+			if err != nil {
+				log.Fatal(err)
+			}
+			if lastbg == entry.OpenAps.Suggested.Bg &&
+				lasttick == tick &&
+				tick != 0.0 {
+				// deduplication, because nightscout still allows duplicate records to be added
+				fmt.Println("skipping duplicate bg record: ", entry.OpenAps.IOB.Time, ", bg: ", entry.OpenAps.Suggested.Bg, ", tick: ", tick)
+				continue
+			}
+
+			lastbg = entry.OpenAps.Suggested.Bg
+			lasttick = tick
 			point.
 				AddField("bg", entry.OpenAps.Suggested.Bg).
+				AddField("tick", tick).
 				AddField("eventual_bg", entry.OpenAps.Suggested.EventualBG).
 				AddField("target_bg", entry.OpenAps.Suggested.TargetBG).
 				AddField("insulin_req", entry.OpenAps.Suggested.InsulinReq).
@@ -106,6 +172,7 @@ func ParseDeviceStatuses(mongo *mongo.Database, influx api.WriteAPIBlocking, lim
 				AddField("bolus", entry.OpenAps.Suggested.Units).
 				AddField("tbs_rate", entry.OpenAps.Suggested.Rate).
 				AddField("tbs_duration", entry.OpenAps.Suggested.Duration)
+
 			if len(entry.OpenAps.Suggested.PredBGs.COB) > 0 {
 				point.AddField("pred_cob", entry.OpenAps.Suggested.PredBGs.COB[len(entry.OpenAps.Suggested.PredBGs.COB)-1])
 			}
@@ -133,19 +200,49 @@ func ParseDeviceStatuses(mongo *mongo.Database, influx api.WriteAPIBlocking, lim
 			}
 		}
 
-		err = influx.WritePoint(ctx, point)
-		if err != nil {
-			log.Fatal(err)
-		}
+		count++
+		influx <- *point
 
-		fmt.Println("time: ", entry.OpenAps.IOB.Time, ", bg: ", entry.OpenAps.Suggested.Bg)
+		fmt.Println("time: ", entry.OpenAps.IOB.Time, "iob:", entry.OpenAps.IOB.IOB, ", bg: ", entry.OpenAps.Suggested.Bg)
 	}
+	fmt.Println("total sent devicestatuses: ", count)
 	if err := cur.Err(); err != nil {
 		log.Fatal(err)
 	}
 }
 
-func ParseTreatments(mongo *mongo.Database, influx api.WriteAPIBlocking, limit *int64, skip *int64, ctx context.Context) {
+func parseTreatments(mongo *mongo.Database, influx chan write.Point, limit *int64, skip *int64, ctx context.Context) {
+	defer wg.Done()
+
+	var noted = map[string]bool{
+		"Site Change":         true,
+		"Insulin Change":      true,
+		"Pump Battery Change": true,
+		"Sensor Change":       true,
+		"Sensor Start":        true,
+		"Sensor Stop":         true,
+		"BG Check":            true,
+		"Exercise":            true,
+		"Announcement":        true,
+		"Question":            true,
+		//"Note": true,
+		"OpenAPS Offline": true,
+		"D.A.D. Alert":    true,
+		"Mbg":             true,
+		//"Carb Correction": true,
+		//"Bolus Wizard": true,
+		//"Correction Bolus": true,
+		//"Meal Bolus": true,
+		//"Combo Bolus": true,
+		//"Temporary Target": true,
+		//"Temporary Target Cancel": true,
+		//"Profile Switch": true,
+		//"Snack Bolus": true,
+		//"Temp Basal": true,
+		//"Temp Basal Start": true,
+		//"Temp Basal End": true,
+	}
+
 	collection := mongo.Collection("treatments")
 	filter := bson.D{}
 
@@ -164,6 +261,7 @@ func ParseTreatments(mongo *mongo.Database, influx api.WriteAPIBlocking, limit *
 	}
 	defer cur.Close(ctx)
 
+	var count = 0
 	for cur.Next(ctx) {
 		var entry NsTreatment
 		err := cur.Decode(&entry)
@@ -197,8 +295,7 @@ func ParseTreatments(mongo *mongo.Database, influx api.WriteAPIBlocking, limit *
 				AddField("percent", entry.Percent).
 				AddField("rate", entry.Rate).
 				AddTag(tagName, "tbs")
-		}
-		if entry.EventType == "Temporary Target" {
+		} else if entry.EventType == "Temporary Target" {
 			point.
 				AddField("duration", entry.Duration).
 				AddField("target_top", entry.TargetTop).
@@ -206,19 +303,18 @@ func ParseTreatments(mongo *mongo.Database, influx api.WriteAPIBlocking, limit *
 				AddField("units", entry.Units).
 				AddField("reason", entry.Reason).
 				AddTag(tagName, "tt")
-		}
-		if len(entry.Notes) > 0 {
+		} else if len(entry.Notes) > 0 {
 			point.AddField("notes", entry.Notes)
+		} else if noted[entry.EventType] {
+			point.AddField("notes", entry.EventType)
 		}
 
-		err = influx.WritePoint(ctx, point)
-		if err != nil {
-			fmt.Println(err)
-		}
-
+		count++
+		influx <- *point
 		fmt.Println("time: ", point.Time(), ", type: ", entry.EventType)
 	}
 
+	fmt.Println("total sent treatments: ", count)
 	if err := cur.Err(); err != nil {
 		log.Fatal(err)
 	}
