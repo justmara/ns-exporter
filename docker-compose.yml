@@ -3,6 +3,7 @@ services:
   grafana-ns:
     image: grafana/grafana-oss:latest
     container_name: grafana-ns
+    restart: always
     depends_on:
       - influx-ns
     volumes:
@@ -15,6 +16,7 @@ services:
   influx-ns:
     image: influxdb:latest
     container_name: influx-ns
+    restart: always
     volumes:
       - data-influx-ns:/var/lib/influxdb2
     networks:
@@ -35,6 +37,7 @@ services:
   ns-exporter:
     image: ns-exporter:latest
     container_name: ns-exporter
+    restart: unless-stopped
     environment:
       - NS_EXPORTER_MONGO_URI=${NS_EXPORTER_MONGO_URI:-mongodb://mongo-ns:27017}
       - NS_EXPORTER_MONGO_DB=${NS_EXPORTER_MONGO_DB:-ns}
@@ -42,6 +45,9 @@ services:
       - NS_EXPORTER_INFLUX_TOKEN=${NS_EXPORTER_INFLUX_TOKEN?err}
       - NS_EXPORTER_LIMIT=3
       - NS_EXPORTER_SKIP=0
+    depends_on:
+      - influxdb
+#      - mongo
     networks:
       - ns-network
 
