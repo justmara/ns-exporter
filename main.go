@@ -7,16 +7,11 @@ import (
 	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
 	"github.com/influxdata/influxdb-client-go/v2/api/write"
 	"github.com/peterbourgon/ff/v3"
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/bson/bsontype"
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
 	"log"
 	"os"
 	"regexp"
 	"strconv"
 	"sync"
-	"time"
 )
 
 var wg sync.WaitGroup
@@ -26,6 +21,8 @@ func main() {
 	var (
 		mongoUri    = fs.String("mongo-uri", "", "Mongo-db uri to download from")
 		mongoDb     = fs.String("mongo-db", "", "Mongo-db database name")
+		nsUri       = fs.String("ns-uri", "", "Nightscout server url to download from")
+		nsToken     = fs.String("ns-token", "", "Nigthscout server API Authorization Token")
 		limit       = fs.Int64("limit", 0, "number of records to read from mongo-db")
 		skip        = fs.Int64("skip", 0, "number of records to skip from mongo-db")
 		influxUri   = fs.String("influx-uri", "", "InfluxDb uri to download from")
@@ -38,33 +35,25 @@ func main() {
 
 	ctx := context.Background()
 
-	client, err := mongo.NewClient(options.Client().ApplyURI(*mongoUri))
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer func() {
-		if err = client.Disconnect(ctx); err != nil {
-			panic(err)
-		}
-	}()
-
-	err = client.Connect(ctx)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	err = client.Ping(ctx, nil)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	mongodb := client.Database(*mongoDb)
+	deviceStatuses := make(chan NsEntry)
+	treatments := make(chan NsTreatment)
 	influx := make(chan write.Point)
+
+	if *mongoUri != "" && *mongoDb != "" {
+		mongo := NewMongoClient(*mongoUri, *mongoDb, ctx)
+		defer mongo.Close(ctx)
+		processClient(mongo, deviceStatuses, treatments, *limit, *skip, ctx)
+	}
+
+	if *nsUri != "" && *nsToken != "" {
+		ns := NewNSClient(*nsUri, *nsToken)
+		processClient(ns, deviceStatuses, treatments, *limit, *skip, ctx)
+	}
 
 	wg.Add(2)
 
-	go parseDeviceStatuses(mongodb, influx, limit, skip, ctx)
-	go parseTreatments(mongodb, influx, limit, skip, ctx)
+	go parseDeviceStatuses(influx, deviceStatuses)
+	go parseTreatments(influx, treatments)
 
 	var wgInflux = &sync.WaitGroup{}
 	go func() {
@@ -81,7 +70,7 @@ func main() {
 				continue
 			}
 
-			err = writeAPI.WritePoint(ctx, &point)
+			err := writeAPI.WritePoint(ctx, &point)
 			count++
 			if err != nil {
 
@@ -99,59 +88,32 @@ func main() {
 	wgInflux.Wait()
 }
 
-func parseDeviceStatuses(mongo *mongo.Database, influx chan write.Point, limit *int64, skip *int64, ctx context.Context) {
+func processClient(client IExporter, deviceStatuses chan NsEntry, treatments chan NsTreatment, limit int64, skip int64, ctx context.Context) {
+	wg.Add(2)
+	go client.LoadDeviceStatuses(deviceStatuses, limit, skip, ctx)
+	go client.LoadTreatments(treatments, limit, skip, ctx)
+}
+
+func parseDeviceStatuses(influx chan write.Point, entries chan NsEntry) {
 	defer wg.Done()
 
 	reg := regexp.MustCompile("Dev: (?P<dev>[-0-9.]+),.*ISF: (?P<isf>[-0-9.]+),.*CR: (?P<cr>[-0-9.]+)")
 
-	collection := mongo.Collection("devicestatus")
-	filter := bson.D{{"openaps", bson.D{{"$exists", true}}}}
-
-	opts := options.Find()
-	opts.SetSort(bson.D{{"created_at", -1}})
-	if *limit > 0 {
-		opts.SetLimit(*limit)
-	}
-	if *skip > 0 {
-		opts.SetSkip(*skip)
-	}
-
-	cur, err := collection.Find(ctx, filter, opts)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer cur.Close(ctx)
-
 	var count = 0
 	var lastbg = 0.0
 	var lasttick float64 = 0
-	for cur.Next(ctx) {
-		var entry NsEntry
-		err := cur.Decode(&entry)
-		if err != nil {
-			fmt.Println(cur.Current.String())
-			log.Fatal(err)
-		}
+
+	for entry := range entries {
 
 		point := influxdb2.NewPointWithMeasurement("openaps").
 			AddField("iob", entry.OpenAps.IOB.IOB).
 			AddField("basal_iob", entry.OpenAps.IOB.BasalIOB).
 			AddField("activity", entry.OpenAps.IOB.Activity).
 			SetTime(entry.OpenAps.IOB.Time)
+
 		if entry.OpenAps.Suggested.Bg > 0 {
-			field := cur.Current.Lookup("openaps", "suggested", "tick")
 
-			var tick float64 = 0
-			if field.Type == bsontype.String {
-				tick, err = strconv.ParseFloat(field.StringValue(), 32)
-			}
-			if field.Type == bsontype.Int32 {
-				tick = float64(field.AsInt64())
-			}
-
-			if err != nil {
-				log.Fatal(err)
-			}
+			var tick = entry.OpenAps.Suggested.Tick
 			if lastbg == entry.OpenAps.Suggested.Bg &&
 				lasttick == tick &&
 				tick != 0.0 {
@@ -205,13 +167,10 @@ func parseDeviceStatuses(mongo *mongo.Database, influx chan write.Point, limit *
 
 		fmt.Println("time: ", entry.OpenAps.IOB.Time, "iob:", entry.OpenAps.IOB.IOB, ", bg: ", entry.OpenAps.Suggested.Bg)
 	}
-	fmt.Println("total sent devicestatuses: ", count)
-	if err := cur.Err(); err != nil {
-		log.Fatal(err)
-	}
+	fmt.Println("total devicestatuses parsed: ", count)
 }
 
-func parseTreatments(mongo *mongo.Database, influx chan write.Point, limit *int64, skip *int64, ctx context.Context) {
+func parseTreatments(influx chan write.Point, entries chan NsTreatment) {
 	defer wg.Done()
 
 	var noted = map[string]bool{
@@ -243,40 +202,12 @@ func parseTreatments(mongo *mongo.Database, influx chan write.Point, limit *int6
 		//"Temp Basal End": true,
 	}
 
-	collection := mongo.Collection("treatments")
-	filter := bson.D{}
-
-	opts := options.Find()
-	opts.SetSort(bson.D{{"created_at", -1}})
-	if *limit > 0 {
-		opts.SetLimit(*limit)
-	}
-	if *skip > 0 {
-		opts.SetSkip(*skip)
-	}
-
-	cur, err := collection.Find(ctx, filter, opts)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer cur.Close(ctx)
-
 	var count = 0
-	for cur.Next(ctx) {
-		var entry NsTreatment
-		err := cur.Decode(&entry)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		strtime := cur.Current.Lookup("created_at").StringValue()
-		ptime, err := time.Parse(time.RFC3339, strtime)
-		if err != nil {
-			log.Fatal(err)
-		}
+	for entry := range entries {
 
 		point := influxdb2.NewPointWithMeasurement("treatments").
-			SetTime(ptime)
+			SetTime(entry.CreatedAt)
+
 		tagName := "type"
 		if entry.Carbs > 0 {
 			point.
@@ -314,8 +245,5 @@ func parseTreatments(mongo *mongo.Database, influx chan write.Point, limit *int6
 		fmt.Println("time: ", point.Time(), ", type: ", entry.EventType)
 	}
 
-	fmt.Println("total sent treatments: ", count)
-	if err := cur.Err(); err != nil {
-		log.Fatal(err)
-	}
+	fmt.Println("total treatments parsed: ", count)
 }

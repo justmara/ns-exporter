@@ -5,9 +5,9 @@ import "time"
 type NsEntry struct {
 	OpenAps struct {
 		Suggested struct {
-			Temp string  `json:"temp" bson:"temp"`
-			Bg   float64 `json:"bg" bson:"bg"`
-			//Tick             string    `json:"tick" bson:"tick"`
+			Temp             string    `json:"temp" bson:"temp"`
+			Bg               float64   `json:"bg" bson:"bg"`
+			Tick             float64   `json:"-" bson:"-"`
 			EventualBG       float64   `json:"eventualBG" bson:"eventualBG"`
 			TargetBG         float64   `json:"targetBG" bson:"targetBG"`
 			InsulinReq       float64   `json:"insulinReq" bson:"insulinReq"`
@@ -38,8 +38,8 @@ type NsEntry struct {
 		Clock     time.Time `json:"clock"`
 		Reservoir int       `json:"reservoir"`
 		Status    struct {
-			Status    string `json:"status"`
-			Timestamp int64  `json:"timestamp"`
+			Status string `json:"status"`
+			//Timestamp int64  `json:"timestamp"`
 		} `json:"status"`
 		Extended struct {
 			Version               string  `json:"Version"`
