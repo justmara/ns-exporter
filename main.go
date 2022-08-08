@@ -19,14 +19,17 @@ var wg sync.WaitGroup
 func main() {
 	fs := flag.NewFlagSet("ns-exporter", flag.ContinueOnError)
 	var (
-		mongoUri    = fs.String("mongo-uri", "", "Mongo-db uri to download from")
-		mongoDb     = fs.String("mongo-db", "", "Mongo-db database name")
-		nsUri       = fs.String("ns-uri", "", "Nightscout server url to download from")
-		nsToken     = fs.String("ns-token", "", "Nigthscout server API Authorization Token")
-		limit       = fs.Int64("limit", 0, "number of records to read from mongo-db")
-		skip        = fs.Int64("skip", 0, "number of records to skip from mongo-db")
-		influxUri   = fs.String("influx-uri", "", "InfluxDb uri to download from")
-		influxToken = fs.String("influx-token", "", "InfluxDb access token")
+		mongoUri      = fs.String("mongo-uri", "", "Mongo-db uri to download from")
+		mongoDb       = fs.String("mongo-db", "", "Mongo-db database name")
+		nsUri         = fs.String("ns-uri", "", "Nightscout server url to download from")
+		nsToken       = fs.String("ns-token", "", "Nigthscout server API Authorization Token")
+		limit         = fs.Int64("limit", 0, "number of records to read from mongo-db")
+		skip          = fs.Int64("skip", 0, "number of records to skip from mongo-db")
+		influxUri     = fs.String("influx-uri", "", "InfluxDb uri to download from")
+		influxToken   = fs.String("influx-token", "", "InfluxDb access token")
+		influxOrg     = fs.String("influx-org", "ns", "InfluxDb organization to use")
+		influxBucket  = fs.String("influx-bucket", "ns", "InfluxDb bucket to use")
+		influxUserTag = fs.String("influx-user-tag", "unknown", "InfluxDb 'user' tag value to be added to every record - to be able to store multiple user data in single bucket")
 	)
 	if err := ff.Parse(fs, os.Args[1:], ff.WithEnvVarPrefix("NS_EXPORTER")); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
@@ -52,15 +55,15 @@ func main() {
 
 	wg.Add(2)
 
-	go parseDeviceStatuses(influx, deviceStatuses)
-	go parseTreatments(influx, treatments)
+	go parseDeviceStatuses(influx, deviceStatuses, *influxUserTag)
+	go parseTreatments(influx, treatments, *influxUserTag)
 
 	var wgInflux = &sync.WaitGroup{}
 	go func() {
 		wgInflux.Add(1)
 		defer wgInflux.Done()
 		var count = 0
-		writeAPI := influxdb2.NewClient(*influxUri, *influxToken).WriteAPIBlocking("ns", "ns")
+		writeAPI := influxdb2.NewClient(*influxUri, *influxToken).WriteAPIBlocking(*influxOrg, *influxBucket)
 
 		for point := range influx {
 
@@ -94,7 +97,7 @@ func processClient(client IExporter, deviceStatuses chan NsEntry, treatments cha
 	go client.LoadTreatments(treatments, limit, skip, ctx)
 }
 
-func parseDeviceStatuses(influx chan write.Point, entries chan NsEntry) {
+func parseDeviceStatuses(influx chan write.Point, entries chan NsEntry, influxUserTag string) {
 	defer wg.Done()
 
 	reg := regexp.MustCompile("Dev: (?P<dev>[-0-9.]+),.*ISF: (?P<isf>[-0-9.]+),.*CR: (?P<cr>[-0-9.]+)")
@@ -106,6 +109,7 @@ func parseDeviceStatuses(influx chan write.Point, entries chan NsEntry) {
 	for entry := range entries {
 
 		point := influxdb2.NewPointWithMeasurement("openaps").
+			AddTag("user", influxUserTag).
 			AddField("iob", entry.OpenAps.IOB.IOB).
 			AddField("basal_iob", entry.OpenAps.IOB.BasalIOB).
 			AddField("activity", entry.OpenAps.IOB.Activity).
@@ -170,7 +174,7 @@ func parseDeviceStatuses(influx chan write.Point, entries chan NsEntry) {
 	fmt.Println("total devicestatuses parsed: ", count)
 }
 
-func parseTreatments(influx chan write.Point, entries chan NsTreatment) {
+func parseTreatments(influx chan write.Point, entries chan NsTreatment, influxUserTag string) {
 	defer wg.Done()
 
 	var noted = map[string]bool{
@@ -206,6 +210,7 @@ func parseTreatments(influx chan write.Point, entries chan NsTreatment) {
 	for entry := range entries {
 
 		point := influxdb2.NewPointWithMeasurement("treatments").
+			AddTag("user", influxUserTag).
 			SetTime(entry.CreatedAt)
 
 		tagName := "type"
