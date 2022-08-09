@@ -15,6 +15,7 @@ import (
 )
 
 var wg sync.WaitGroup
+var wgInflux sync.WaitGroup
 
 func main() {
 	fs := flag.NewFlagSet("ns-exporter", flag.ContinueOnError)
@@ -53,12 +54,12 @@ func main() {
 		processClient(ns, deviceStatuses, treatments, *limit, *skip, ctx)
 	}
 
-	wg.Add(2)
+	var wgTransform = &sync.WaitGroup{}
+	wgTransform.Add(2)
 
-	go parseDeviceStatuses(influx, deviceStatuses, *influxUserTag)
-	go parseTreatments(influx, treatments, *influxUserTag)
+	go parseDeviceStatuses(wgTransform, influx, deviceStatuses, *influxUserTag)
+	go parseTreatments(wgTransform, influx, treatments, *influxUserTag)
 
-	var wgInflux = &sync.WaitGroup{}
 	go func() {
 		wgInflux.Add(1)
 		defer wgInflux.Done()
@@ -87,6 +88,9 @@ func main() {
 	}()
 
 	wg.Wait()
+	close(deviceStatuses)
+	close(treatments)
+	wgTransform.Wait()
 	close(influx)
 	wgInflux.Wait()
 }
@@ -97,8 +101,8 @@ func processClient(client IExporter, deviceStatuses chan NsEntry, treatments cha
 	go client.LoadTreatments(treatments, limit, skip, ctx)
 }
 
-func parseDeviceStatuses(influx chan write.Point, entries chan NsEntry, influxUserTag string) {
-	defer wg.Done()
+func parseDeviceStatuses(group *sync.WaitGroup, influx chan write.Point, entries chan NsEntry, influxUserTag string) {
+	defer group.Done()
 
 	reg := regexp.MustCompile("Dev: (?P<dev>[-0-9.]+),.*ISF: (?P<isf>[-0-9.]+),.*CR: (?P<cr>[-0-9.]+)")
 
@@ -174,8 +178,8 @@ func parseDeviceStatuses(influx chan write.Point, entries chan NsEntry, influxUs
 	fmt.Println("total devicestatuses parsed: ", count)
 }
 
-func parseTreatments(influx chan write.Point, entries chan NsTreatment, influxUserTag string) {
-	defer wg.Done()
+func parseTreatments(group *sync.WaitGroup, influx chan write.Point, entries chan NsTreatment, influxUserTag string) {
+	defer group.Done()
 
 	var noted = map[string]bool{
 		"Site Change":         true,

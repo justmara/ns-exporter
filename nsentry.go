@@ -36,10 +36,10 @@ type NsEntry struct {
 	} `json:"openaps" bson:"openaps"`
 	Pump struct {
 		Clock     time.Time `json:"clock"`
-		Reservoir int       `json:"reservoir"`
+		Reservoir float64   `json:"reservoir"`
 		Status    struct {
-			Status string `json:"status"`
-			//Timestamp int64  `json:"timestamp"`
+			Status    string `json:"status"`
+			Timestamp int64  `json:"-" bson:"-"`
 		} `json:"status"`
 		Extended struct {
 			Version               string  `json:"Version"`

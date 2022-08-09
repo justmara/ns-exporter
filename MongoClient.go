@@ -47,7 +47,6 @@ func NewMongoClient(uri string, db string, ctx context.Context) *MongoClient {
 
 func (c MongoClient) LoadDeviceStatuses(queue chan NsEntry, limit int64, skip int64, ctx context.Context) {
 	defer wg.Done()
-	defer close(queue)
 
 	collection := c.db.Collection("devicestatus")
 	filter := bson.D{{"openaps", bson.D{{"$exists", true}}}}
@@ -101,7 +100,6 @@ func (c MongoClient) LoadDeviceStatuses(queue chan NsEntry, limit int64, skip in
 
 func (c MongoClient) LoadTreatments(queue chan NsTreatment, limit int64, skip int64, ctx context.Context) {
 	defer wg.Done()
-	defer close(queue)
 
 	collection := c.db.Collection("treatments")
 	filter := bson.D{}

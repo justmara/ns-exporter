@@ -31,7 +31,6 @@ func NewNSClient(uri string, token string) *NSClient {
 
 func (c NSClient) LoadDeviceStatuses(queue chan NsEntry, limit int64, skip int64, _ context.Context) {
 	defer wg.Done()
-	defer close(queue)
 	client := resty.New()
 
 	entries := &nsDeviceStatusResult{}
@@ -57,7 +56,6 @@ func (c NSClient) LoadDeviceStatuses(queue chan NsEntry, limit int64, skip int64
 
 func (c NSClient) LoadTreatments(queue chan NsTreatment, limit int64, skip int64, _ context.Context) {
 	defer wg.Done()
-	defer close(queue)
 	client := resty.New()
 
 	entries := &nsTreatmentsResult{}
