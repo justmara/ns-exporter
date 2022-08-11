@@ -186,6 +186,7 @@
           "custom": {
             "axisLabel": "",
             "axisPlacement": "left",
+            "axisSoftMax": 14,
             "barAlignment": 0,
             "drawStyle": "line",
             "fillOpacity": 0,
@@ -212,7 +213,6 @@
             }
           },
           "mappings": [],
-          "max": 14,
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -984,13 +984,13 @@
     },
     {
       "datasource": {
-        "type": "influxdb",
-        "uid": "${DS_INFLUXDB_QL}"
+        "type": "datasource",
+        "uid": "-- Mixed --"
       },
       "fieldConfig": {
         "defaults": {
           "color": {
-            "mode": "thresholds"
+            "mode": "fixed"
           },
           "custom": {
             "axisLabel": "",
@@ -1029,14 +1029,6 @@
               {
                 "color": "dark-red",
                 "value": null
-              },
-              {
-                "color": "green",
-                "value": 3.9
-              },
-              {
-                "color": "#EAB839",
-                "value": 10
               }
             ]
           }
@@ -1111,135 +1103,13 @@
       },
       "targets": [
         {
-          "alias": "pred_cob",
           "datasource": {
             "type": "influxdb",
-            "uid": "${DS_INFLUXDB_QL}"
+            "uid": "${DS_INFLUXDB}"
           },
-          "groupBy": [
-            {
-              "params": [
-                "$__interval"
-              ],
-              "type": "time"
-            },
-            {
-              "params": [
-                "0"
-              ],
-              "type": "fill"
-            }
-          ],
           "hide": false,
-          "measurement": "openaps",
-          "orderByTime": "ASC",
-          "policy": "ns",
-          "query": "SELECT \"pred_cob\"  / 18.0 FROM \"ns\".\"openaps\" WHERE $timeFilter",
-          "rawQuery": false,
-          "refId": "B",
-          "resultFormat": "time_series",
-          "select": [
-            [
-              {
-                "params": [
-                  "pred_cob"
-                ],
-                "type": "field"
-              },
-              {
-                "params": [],
-                "type": "mean"
-              },
-              {
-                "params": [
-                  " / 18.0"
-                ],
-                "type": "math"
-              }
-            ]
-          ],
-          "tags": []
-        },
-        {
-          "alias": "$col",
-          "datasource": {
-            "type": "influxdb",
-            "uid": "${DS_INFLUXDB_QL}"
-          },
-          "groupBy": [],
-          "hide": false,
-          "measurement": "openaps",
-          "orderByTime": "ASC",
-          "policy": "ns",
-          "refId": "C",
-          "resultFormat": "time_series",
-          "select": [
-            [
-              {
-                "params": [
-                  "pred_iob"
-                ],
-                "type": "field"
-              },
-              {
-                "params": [
-                  " / 18.0"
-                ],
-                "type": "math"
-              }
-            ]
-          ],
-          "tags": []
-        },
-        {
-          "alias": "pred_uam",
-          "datasource": {
-            "type": "influxdb",
-            "uid": "${DS_INFLUXDB_QL}"
-          },
-          "groupBy": [
-            {
-              "params": [
-                "$interval"
-              ],
-              "type": "time"
-            },
-            {
-              "params": [
-                "0"
-              ],
-              "type": "fill"
-            }
-          ],
-          "hide": false,
-          "measurement": "openaps",
-          "orderByTime": "ASC",
-          "policy": "ns",
-          "query": "SELECT \"pred_uam\"  / 18.0 FROM \"ns\".\"openaps\" WHERE $timeFilter AND \"pred_uam\" > 39",
-          "rawQuery": false,
-          "refId": "A",
-          "resultFormat": "time_series",
-          "select": [
-            [
-              {
-                "params": [
-                  "pred_uam"
-                ],
-                "type": "field"
-              },
-              {
-                "params": [],
-                "type": "median"
-              },
-              {
-                "params": [
-                  " / 18.0"
-                ],
-                "type": "math"
-              }
-            ]
-          ],
-          "tags": []
+          "query": "from(bucket: \"ns\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"openaps\")\n  |> filter(fn: (r) => r[\"_field\"] == \"pred_zt\" or r[\"_field\"] == \"pred_uam\" or r[\"_field\"] == \"pred_iob\" or r[\"_field\"] == \"pred_cob\")\n  |> aggregateWindow(every: 5m, fn: last, createEmpty: true)\n  |> fill(value: 0.0)\n  |> map(fn: (r) => ({ r with _value: float(v: r._value)/18.0, _measurement: \"\" }))",
+          "refId": "D"
         }
       ],
       "title": "Predictions",
@@ -2083,6 +1953,6 @@
   "timezone": "",
   "title": "Nightscout data",
   "uid": "8XquEMC7z",
-  "version": 87,
+  "version": 95,
   "weekStart": ""
 }
