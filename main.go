@@ -20,17 +20,16 @@ var wgInflux sync.WaitGroup
 func main() {
 	fs := flag.NewFlagSet("ns-exporter", flag.ContinueOnError)
 	var (
-		mongoUri      = fs.String("mongo-uri", "", "Mongo-db uri to download from")
-		mongoDb       = fs.String("mongo-db", "", "Mongo-db database name")
-		nsUri         = fs.String("ns-uri", "", "Nightscout server url to download from")
-		nsToken       = fs.String("ns-token", "", "Nigthscout server API Authorization Token")
-		limit         = fs.Int64("limit", 0, "number of records to read from mongo-db")
-		skip          = fs.Int64("skip", 0, "number of records to skip from mongo-db")
-		influxUri     = fs.String("influx-uri", "", "InfluxDb uri to download from")
-		influxToken   = fs.String("influx-token", "", "InfluxDb access token")
-		influxOrg     = fs.String("influx-org", "ns", "InfluxDb organization to use")
-		influxBucket  = fs.String("influx-bucket", "ns", "InfluxDb bucket to use")
-		influxUserTag = fs.String("influx-user-tag", "unknown", "InfluxDb 'user' tag value to be added to every record - to be able to store multiple user data in single bucket")
+		mongoUri     = fs.String("mongo-uri", "", "Mongo-db uri to download from")
+		mongoDb      = fs.String("mongo-db", "", "Mongo-db database name")
+		nsUri        = fs.String("ns-uri", "", "Nightscout server url to download from")
+		nsToken      = fs.String("ns-token", "", "Nigthscout server API Authorization Token")
+		limit        = fs.Int64("limit", 0, "number of records to read from mongo-db")
+		skip         = fs.Int64("skip", 0, "number of records to skip from mongo-db")
+		influxUri    = fs.String("influx-uri", "", "InfluxDb uri to download from")
+		influxToken  = fs.String("influx-token", "", "InfluxDb access token")
+		influxOrg    = fs.String("influx-org", "ns", "InfluxDb organization to use")
+		influxBucket = fs.String("influx-bucket", "ns", "InfluxDb bucket to use")
 	)
 	if err := ff.Parse(fs, os.Args[1:], ff.WithEnvVarPrefix("NS_EXPORTER")); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
@@ -57,8 +56,8 @@ func main() {
 	var wgTransform = &sync.WaitGroup{}
 	wgTransform.Add(2)
 
-	go parseDeviceStatuses(wgTransform, influx, deviceStatuses, *influxUserTag)
-	go parseTreatments(wgTransform, influx, treatments, *influxUserTag)
+	go parseDeviceStatuses(wgTransform, influx, deviceStatuses)
+	go parseTreatments(wgTransform, influx, treatments)
 
 	go func() {
 		wgInflux.Add(1)
@@ -101,7 +100,7 @@ func processClient(client IExporter, deviceStatuses chan NsEntry, treatments cha
 	go client.LoadTreatments(treatments, limit, skip, ctx)
 }
 
-func parseDeviceStatuses(group *sync.WaitGroup, influx chan write.Point, entries chan NsEntry, influxUserTag string) {
+func parseDeviceStatuses(group *sync.WaitGroup, influx chan write.Point, entries chan NsEntry) {
 	defer group.Done()
 
 	reg := regexp.MustCompile("Dev: (?P<dev>[-0-9.]+),.*ISF: (?P<isf>[-0-9.]+),.*CR: (?P<cr>[-0-9.]+)")
@@ -113,7 +112,6 @@ func parseDeviceStatuses(group *sync.WaitGroup, influx chan write.Point, entries
 	for entry := range entries {
 
 		point := influxdb2.NewPointWithMeasurement("openaps").
-			AddTag("user", influxUserTag).
 			AddField("iob", entry.OpenAps.IOB.IOB).
 			AddField("basal_iob", entry.OpenAps.IOB.BasalIOB).
 			AddField("activity", entry.OpenAps.IOB.Activity).
@@ -178,7 +176,7 @@ func parseDeviceStatuses(group *sync.WaitGroup, influx chan write.Point, entries
 	fmt.Println("total devicestatuses parsed: ", count)
 }
 
-func parseTreatments(group *sync.WaitGroup, influx chan write.Point, entries chan NsTreatment, influxUserTag string) {
+func parseTreatments(group *sync.WaitGroup, influx chan write.Point, entries chan NsTreatment) {
 	defer group.Done()
 
 	var noted = map[string]bool{
@@ -203,7 +201,7 @@ func parseTreatments(group *sync.WaitGroup, influx chan write.Point, entries cha
 		//"Combo Bolus": true,
 		//"Temporary Target": true,
 		//"Temporary Target Cancel": true,
-		//"Profile Switch": true,
+		"Profile Switch": true,
 		//"Snack Bolus": true,
 		//"Temp Basal": true,
 		//"Temp Basal Start": true,
@@ -214,7 +212,6 @@ func parseTreatments(group *sync.WaitGroup, influx chan write.Point, entries cha
 	for entry := range entries {
 
 		point := influxdb2.NewPointWithMeasurement("treatments").
-			AddTag("user", influxUserTag).
 			SetTime(entry.CreatedAt)
 
 		tagName := "type"

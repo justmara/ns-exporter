@@ -14,10 +14,10 @@ type NsEntry struct {
 			DeliverAt        time.Time `json:"deliverAt" bson:"deliverAt"`
 			SensitivityRatio float64   `json:"sensitivityRatio" bson:"sensitivityRatio"`
 			PredBGs          struct {
-				IOB []int `json:"IOB"`
-				ZT  []int `json:"ZT"`
-				COB []int `json:"COB"`
-				UAM []int `json:"UAM"`
+				IOB []float64 `json:"IOB"`
+				ZT  []float64 `json:"ZT"`
+				COB []float64 `json:"COB"`
+				UAM []float64 `json:"UAM"`
 			} `json:"predBGs"`
 			COB       float64   `json:"COB"`
 			IOB       float64   `json:"IOB"`

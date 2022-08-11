@@ -46,7 +46,7 @@ services:
       - NS_EXPORTER_LIMIT=3
       - NS_EXPORTER_SKIP=0
     depends_on:
-      - influxdb
+      - influx-ns
 #      - mongo
     networks:
       - ns-network
