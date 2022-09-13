@@ -17,12 +17,14 @@ type MongoClient struct {
 	mongoDb  string
 	db       *mongo.Database
 	client   *mongo.Client
+	user     string
 }
 
-func NewMongoClient(uri string, db string, ctx context.Context) *MongoClient {
+func NewMongoClient(uri string, db string, user string, ctx context.Context) *MongoClient {
 	c := &MongoClient{
 		mongoUri: uri,
 		mongoDb:  db,
+		user:     user,
 	}
 
 	client, err := mongo.NewClient(options.Client().ApplyURI(c.mongoUri))
@@ -74,6 +76,7 @@ func (c MongoClient) LoadDeviceStatuses(queue chan NsEntry, limit int64, skip in
 			fmt.Println(cur.Current.String())
 			log.Fatal(err)
 		}
+		entry.User = c.user
 		if entry.OpenAps.Suggested.Bg > 0 {
 			field := cur.Current.Lookup("openaps", "suggested", "tick")
 			var tick float64 = 0
@@ -126,7 +129,7 @@ func (c MongoClient) LoadTreatments(queue chan NsTreatment, limit int64, skip in
 		if err != nil {
 			log.Fatal(err)
 		}
-
+		entry.User = c.user
 		strtime := cur.Current.Lookup("created_at").StringValue()
 		ptime, err := time.Parse(time.RFC3339, strtime)
 		if err != nil {

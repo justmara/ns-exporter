@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
@@ -30,6 +31,7 @@ func main() {
 		influxToken  = fs.String("influx-token", "", "InfluxDb access token")
 		influxOrg    = fs.String("influx-org", "ns", "InfluxDb organization to use")
 		influxBucket = fs.String("influx-bucket", "ns", "InfluxDb bucket to use")
+		configFile   = fs.String("config", "", "File to load configuration from")
 	)
 	if err := ff.Parse(fs, os.Args[1:], ff.WithEnvVarPrefix("NS_EXPORTER")); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
@@ -43,14 +45,52 @@ func main() {
 	influx := make(chan write.Point)
 
 	if *mongoUri != "" && *mongoDb != "" {
-		mongo := NewMongoClient(*mongoUri, *mongoDb, ctx)
-		defer mongo.Close(ctx)
-		processClient(mongo, deviceStatuses, treatments, *limit, *skip, ctx)
+		NewExporterFromMongo(*mongoUri, *mongoDb, "", ctx).processClient(deviceStatuses, treatments, *limit, *skip, ctx)
 	}
-
 	if *nsUri != "" && *nsToken != "" {
-		ns := NewNSClient(*nsUri, *nsToken)
-		processClient(ns, deviceStatuses, treatments, *limit, *skip, ctx)
+		NewExporterFromNS(*nsUri, *nsToken, "").processClient(deviceStatuses, treatments, *limit, *skip, ctx)
+	}
+	var config = Config{}
+	if *configFile != "" {
+		file, err := os.Open(*configFile)
+		if err != nil {
+			log.Fatal("can't open config file: ", err)
+		}
+		defer file.Close()
+		decoder := json.NewDecoder(file)
+		err = decoder.Decode(&config)
+		if err != nil {
+			log.Fatal("can't decode config JSON: ", err)
+		}
+		var climit = *limit
+		if climit == 0 {
+			climit = config.Limit
+		}
+		if climit == 0 {
+			fail("'limit' must be greater than 0")
+		}
+
+		var cskip = *skip
+		if cskip == 0 {
+			cskip = config.Skip
+		}
+
+		if config.MongoUri != "" && config.MongoDb != "" {
+			NewExporterFromMongo(config.MongoUri, config.MongoDb, "", ctx).processClient(deviceStatuses, treatments, climit, cskip, ctx)
+		}
+		if config.NsUri != "" && config.NsToken != "" {
+			NewExporterFromNS(config.NsUri, config.NsToken, "").processClient(deviceStatuses, treatments, climit, cskip, ctx)
+		}
+
+		for _, entry := range config.Imports {
+			var fMongoUri = combine("MongoDB uri not supplied", *mongoUri, entry.MongoUri)
+			if fMongoUri != "" && entry.MongoDb != "" {
+				NewExporterFromMongo(fMongoUri, entry.MongoDb, entry.User, ctx).processClient(deviceStatuses, treatments, climit, cskip, ctx)
+			}
+			if entry.NsUri != "" && entry.NsToken != "" {
+				NewExporterFromNS(entry.NsUri, entry.NsToken, entry.User).processClient(deviceStatuses, treatments, climit, cskip, ctx)
+			}
+		}
 	}
 
 	var wgTransform = &sync.WaitGroup{}
@@ -63,7 +103,9 @@ func main() {
 		wgInflux.Add(1)
 		defer wgInflux.Done()
 		var count = 0
-		writeAPI := influxdb2.NewClient(*influxUri, *influxToken).WriteAPIBlocking(*influxOrg, *influxBucket)
+		var fInfluxUri = combine("InfluxDB uri not supplied", *influxUri, config.InfluxUri)
+		var fInfluxToken = combine("InfluxDB token not supplied", *influxToken, config.InfluxToken)
+		writeAPI := influxdb2.NewClient(fInfluxUri, fInfluxToken).WriteAPIBlocking(*influxOrg, *influxBucket)
 
 		for point := range influx {
 
@@ -94,10 +136,22 @@ func main() {
 	wgInflux.Wait()
 }
 
-func processClient(client IExporter, deviceStatuses chan NsEntry, treatments chan NsTreatment, limit int64, skip int64, ctx context.Context) {
-	wg.Add(2)
-	go client.LoadDeviceStatuses(deviceStatuses, limit, skip, ctx)
-	go client.LoadTreatments(treatments, limit, skip, ctx)
+func combine(message string, values ...string) string {
+	var result = ""
+	for _, value := range values {
+		if value != "" {
+			result = value
+		}
+	}
+	if result == "" {
+		fail(message)
+	}
+	return result
+}
+
+func fail(message string) {
+	fmt.Fprintf(os.Stderr, "error: %v\n", message)
+	os.Exit(1)
 }
 
 func parseDeviceStatuses(group *sync.WaitGroup, influx chan write.Point, entries chan NsEntry) {
@@ -116,6 +170,10 @@ func parseDeviceStatuses(group *sync.WaitGroup, influx chan write.Point, entries
 			AddField("basal_iob", entry.OpenAps.IOB.BasalIOB).
 			AddField("activity", entry.OpenAps.IOB.Activity).
 			SetTime(entry.OpenAps.IOB.Time)
+
+		if entry.User != "" {
+			point.AddTag("user", entry.User)
+		}
 
 		if entry.OpenAps.Suggested.Bg > 0 {
 
@@ -213,6 +271,10 @@ func parseTreatments(group *sync.WaitGroup, influx chan write.Point, entries cha
 
 		point := influxdb2.NewPointWithMeasurement("treatments").
 			SetTime(entry.CreatedAt)
+
+		if entry.User != "" {
+			point.AddTag("user", entry.User)
+		}
 
 		tagName := "type"
 		if entry.Carbs > 0 {
