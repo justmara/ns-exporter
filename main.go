@@ -157,7 +157,7 @@ func fail(message string) {
 func parseDeviceStatuses(group *sync.WaitGroup, influx chan write.Point, entries chan NsEntry) {
 	defer group.Done()
 
-	reg := regexp.MustCompile("Dev: (?P<dev>[-0-9.]+),.*ISF: (?:[-0-9.\\/]+=)?(?P<isf>[-0-9.]+),.*CR: (?P<cr>[-0-9.]+)")
+	reg := regexp.MustCompile("Dev: (?P<dev>[-0-9.]+),.*ISF: (?:(?P<isf_nt>[-0-9.]+)/(?P<isf_bg>[-0-9.]+)+=)?(?P<isf>[-0-9.]+),.*CR: (?P<cr>[-0-9.]+)")
 
 	var count = 0
 	var lastbg = 0.0
@@ -223,6 +223,8 @@ func parseDeviceStatuses(group *sync.WaitGroup, influx chan write.Point, entries
 						}
 					}
 				}
+
+				point.AddField("reason", entry.OpenAps.Suggested.Reason)
 			}
 		}
 
