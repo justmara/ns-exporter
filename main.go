@@ -8,6 +8,7 @@ import (
 	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
 	"github.com/influxdata/influxdb-client-go/v2/api/write"
 	"github.com/peterbourgon/ff/v3"
+	"html"
 	"log"
 	"os"
 	"regexp"
@@ -224,7 +225,7 @@ func parseDeviceStatuses(group *sync.WaitGroup, influx chan write.Point, entries
 					}
 				}
 
-				point.AddField("reason", entry.OpenAps.Suggested.Reason)
+				point.AddField("reason", html.UnescapeString(entry.OpenAps.Suggested.Reason))
 			}
 		}
 
