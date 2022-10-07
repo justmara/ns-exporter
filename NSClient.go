@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"strconv"
 	"strings"
@@ -33,6 +34,9 @@ func NewNSClient(uri string, token string, user string) *NSClient {
 
 func (c NSClient) LoadDeviceStatuses(queue chan NsEntry, limit int64, skip int64, _ context.Context) {
 	defer wg.Done()
+
+	fmt.Println("LoadDeviceStatuses from NS, limit: ", limit, ", skip: ", skip)
+
 	client := resty.New()
 
 	entries := &nsDeviceStatusResult{}
@@ -59,6 +63,9 @@ func (c NSClient) LoadDeviceStatuses(queue chan NsEntry, limit int64, skip int64
 
 func (c NSClient) LoadTreatments(queue chan NsTreatment, limit int64, skip int64, _ context.Context) {
 	defer wg.Done()
+
+	fmt.Println("LoadTreatments from NS, limit: ", limit, ", skip: ", skip)
+
 	client := resty.New()
 
 	entries := &nsTreatmentsResult{}
