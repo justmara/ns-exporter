@@ -84,7 +84,7 @@ func main() {
 		}
 
 		for _, entry := range config.Imports {
-			var fMongoUri = combine("MongoDB uri not supplied", *mongoUri, entry.MongoUri)
+			var fMongoUri = combine(*mongoUri, entry.MongoUri)
 			if fMongoUri != "" && entry.MongoDb != "" {
 				NewExporterFromMongo(fMongoUri, entry.MongoDb, entry.User, ctx).processClient(deviceStatuses, treatments, climit, cskip, ctx)
 			}
@@ -104,8 +104,8 @@ func main() {
 		wgInflux.Add(1)
 		defer wgInflux.Done()
 		var count = 0
-		var fInfluxUri = combine("InfluxDB uri not supplied", *influxUri, config.InfluxUri)
-		var fInfluxToken = combine("InfluxDB token not supplied", *influxToken, config.InfluxToken)
+		var fInfluxUri = combineOrFail("InfluxDB uri not supplied", *influxUri, config.InfluxUri)
+		var fInfluxToken = combineOrFail("InfluxDB token not supplied", *influxToken, config.InfluxToken)
 		writeAPI := influxdb2.NewClient(fInfluxUri, fInfluxToken).WriteAPIBlocking(*influxOrg, *influxBucket)
 
 		for point := range influx {
@@ -137,15 +137,20 @@ func main() {
 	wgInflux.Wait()
 }
 
-func combine(message string, values ...string) string {
+func combineOrFail(message string, values ...string) string {
+	var result = combine(values...)
+	if result == "" {
+		fail(message)
+	}
+	return result
+}
+
+func combine(values ...string) string {
 	var result = ""
 	for _, value := range values {
 		if value != "" {
 			result = value
 		}
-	}
-	if result == "" {
-		fail(message)
 	}
 	return result
 }
