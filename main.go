@@ -106,7 +106,9 @@ func main() {
 		var count = 0
 		var fInfluxUri = combineOrFail("InfluxDB uri not supplied", *influxUri, config.InfluxUri)
 		var fInfluxToken = combineOrFail("InfluxDB token not supplied", *influxToken, config.InfluxToken)
-		writeAPI := influxdb2.NewClient(fInfluxUri, fInfluxToken).WriteAPIBlocking(*influxOrg, *influxBucket)
+		var fInfluxOrg = combineOrFail("InfluxDB token not supplied", *influxOrg, config.InfluxOrg)
+		var fInfluxBucket = combineOrFail("InfluxDB token not supplied", *influxBucket, config.InfluxBucket)
+		writeAPI := influxdb2.NewClient(fInfluxUri, fInfluxToken).WriteAPIBlocking(fInfluxOrg, fInfluxBucket)
 
 		for point := range influx {
 
