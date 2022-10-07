@@ -47,7 +47,9 @@ func NewMongoClient(uri string, db string, user string, ctx context.Context) *Mo
 	return c
 }
 
-func (c MongoClient) LoadDeviceStatuses(queue chan NsEntry, limit int64, skip int64, ctx context.Context) {
+func (c *MongoClient) Authorize(_ context.Context) {}
+
+func (c *MongoClient) LoadDeviceStatuses(queue chan NsEntry, limit int64, skip int64, ctx context.Context) {
 
 	defer wg.Done()
 
@@ -104,7 +106,7 @@ func (c MongoClient) LoadDeviceStatuses(queue chan NsEntry, limit int64, skip in
 	}
 }
 
-func (c MongoClient) LoadTreatments(queue chan NsTreatment, limit int64, skip int64, ctx context.Context) {
+func (c *MongoClient) LoadTreatments(queue chan NsTreatment, limit int64, skip int64, ctx context.Context) {
 	defer wg.Done()
 
 	fmt.Println("LoadTreatments from MongoDB, limit: ", limit, ", skip: ", skip)
@@ -154,6 +156,6 @@ func (c MongoClient) LoadTreatments(queue chan NsTreatment, limit int64, skip in
 	}
 }
 
-func (c MongoClient) Close(ctx context.Context) {
+func (c *MongoClient) Close(ctx context.Context) {
 	c.client.Disconnect(ctx)
 }
