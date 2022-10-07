@@ -56,8 +56,10 @@ func (c NSClient) LoadDeviceStatuses(queue chan NsEntry, limit int64, skip int64
 	}
 
 	for _, entry := range entries.Records {
-		entry.User = c.user
-		queue <- entry
+		if strings.HasPrefix(entry.Device, "openaps") {
+			entry.User = c.user
+			queue <- entry
+		}
 	}
 }
 

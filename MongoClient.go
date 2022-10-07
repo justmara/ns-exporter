@@ -96,7 +96,7 @@ func (c MongoClient) LoadDeviceStatuses(queue chan NsEntry, limit int64, skip in
 
 		count++
 
-		fmt.Println("time: ", entry.OpenAps.IOB.Time, "iob:", entry.OpenAps.IOB.IOB, ", bg: ", entry.OpenAps.Suggested.Bg)
+		fmt.Println("devicestatus time: ", entry.OpenAps.IOB.Time, "iob:", entry.OpenAps.IOB.IOB, ", bg: ", entry.OpenAps.Suggested.Bg)
 	}
 	fmt.Println("total devicestatuses sent: ", count)
 	if err := cur.Err(); err != nil {
@@ -145,7 +145,7 @@ func (c MongoClient) LoadTreatments(queue chan NsTreatment, limit int64, skip in
 		queue <- entry
 		count++
 
-		fmt.Println("time: ", entry.CreatedAt, ", type: ", entry.EventType)
+		fmt.Println("treatment time: ", entry.CreatedAt, ", type: ", entry.EventType)
 	}
 
 	fmt.Println("total treatments sent: ", count)

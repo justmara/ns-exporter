@@ -239,7 +239,7 @@ func parseDeviceStatuses(group *sync.WaitGroup, influx chan write.Point, entries
 		count++
 		influx <- *point
 
-		fmt.Println("time: ", entry.OpenAps.IOB.Time, "iob:", entry.OpenAps.IOB.IOB, ", bg: ", entry.OpenAps.Suggested.Bg)
+		fmt.Println("treatment time+: ", entry.OpenAps.IOB.Time, "iob:", entry.OpenAps.IOB.IOB, ", bg: ", entry.OpenAps.Suggested.Bg)
 	}
 	fmt.Println("total devicestatuses parsed: ", count)
 }

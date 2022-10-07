@@ -3,6 +3,7 @@ package main
 import "time"
 
 type NsEntry struct {
+	Device  string
 	OpenAps struct {
 		Suggested struct {
 			Temp             string    `json:"temp" bson:"temp"`
