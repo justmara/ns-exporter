@@ -33,6 +33,7 @@ func main() {
 		influxOrg    = fs.String("influx-org", "ns", "InfluxDb organization to use")
 		influxBucket = fs.String("influx-bucket", "ns", "InfluxDb bucket to use")
 		configFile   = fs.String("config", "", "File to load configuration from")
+		user         = fs.String("user", "", "User name to be set on Influx record")
 	)
 	if err := ff.Parse(fs, os.Args[1:], ff.WithEnvVarPrefix("NS_EXPORTER")); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
@@ -46,10 +47,10 @@ func main() {
 	influx := make(chan write.Point)
 
 	if *mongoUri != "" && *mongoDb != "" {
-		NewExporterFromMongo(*mongoUri, *mongoDb, "", ctx).processClient(deviceStatuses, treatments, *limit, *skip, ctx)
+		NewExporterFromMongo(*mongoUri, *mongoDb, *user, ctx).processClient(deviceStatuses, treatments, *limit, *skip, ctx)
 	}
 	if *nsUri != "" && *nsToken != "" {
-		NewExporterFromNS(*nsUri, *nsToken, "").processClient(deviceStatuses, treatments, *limit, *skip, ctx)
+		NewExporterFromNS(*nsUri, *nsToken, *user).processClient(deviceStatuses, treatments, *limit, *skip, ctx)
 	}
 	var config = Config{}
 	if *configFile != "" {
@@ -74,13 +75,6 @@ func main() {
 		var cskip = *skip
 		if cskip == 0 {
 			cskip = config.Skip
-		}
-
-		if config.MongoUri != "" && config.MongoDb != "" {
-			NewExporterFromMongo(config.MongoUri, config.MongoDb, "", ctx).processClient(deviceStatuses, treatments, climit, cskip, ctx)
-		}
-		if config.NsUri != "" && config.NsToken != "" {
-			NewExporterFromNS(config.NsUri, config.NsToken, "").processClient(deviceStatuses, treatments, climit, cskip, ctx)
 		}
 
 		for _, entry := range config.Imports {
@@ -205,7 +199,8 @@ func parseDeviceStatuses(group *sync.WaitGroup, influx chan write.Point, entries
 				AddField("cob", entry.OpenAps.Suggested.COB).
 				AddField("bolus", entry.OpenAps.Suggested.Units).
 				AddField("tbs_rate", entry.OpenAps.Suggested.Rate).
-				AddField("tbs_duration", entry.OpenAps.Suggested.Duration)
+				AddField("tbs_duration", entry.OpenAps.Suggested.Duration).
+				AddField("sens", entry.OpenAps.Suggested.SensitivityRatio)
 
 			if len(entry.OpenAps.Suggested.PredBGs.COB) > 0 {
 				point.AddField("pred_cob", entry.OpenAps.Suggested.PredBGs.COB[len(entry.OpenAps.Suggested.PredBGs.COB)-1])
