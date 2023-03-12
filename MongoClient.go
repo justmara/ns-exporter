@@ -17,12 +17,14 @@ type MongoClient struct {
 	mongoDb  string
 	db       *mongo.Database
 	client   *mongo.Client
+	user     string
 }
 
-func NewMongoClient(uri string, db string, ctx context.Context) *MongoClient {
+func NewMongoClient(uri string, db string, user string, ctx context.Context) *MongoClient {
 	c := &MongoClient{
 		mongoUri: uri,
 		mongoDb:  db,
+		user:     user,
 	}
 
 	client, err := mongo.NewClient(options.Client().ApplyURI(c.mongoUri))
@@ -46,7 +48,10 @@ func NewMongoClient(uri string, db string, ctx context.Context) *MongoClient {
 }
 
 func (c MongoClient) LoadDeviceStatuses(queue chan NsEntry, limit int64, skip int64, ctx context.Context) {
+
 	defer wg.Done()
+
+	fmt.Println("LoadDeviceStatuses from MongoDB, limit: ", limit, ", skip: ", skip)
 
 	collection := c.db.Collection("devicestatus")
 	filter := bson.D{{"openaps", bson.D{{"$exists", true}}}}
@@ -74,6 +79,7 @@ func (c MongoClient) LoadDeviceStatuses(queue chan NsEntry, limit int64, skip in
 			fmt.Println(cur.Current.String())
 			log.Fatal(err)
 		}
+		entry.User = c.user
 		if entry.OpenAps.Suggested.Bg > 0 {
 			field := cur.Current.Lookup("openaps", "suggested", "tick")
 			var tick float64 = 0
@@ -90,7 +96,7 @@ func (c MongoClient) LoadDeviceStatuses(queue chan NsEntry, limit int64, skip in
 
 		count++
 
-		fmt.Println("time: ", entry.OpenAps.IOB.Time, "iob:", entry.OpenAps.IOB.IOB, ", bg: ", entry.OpenAps.Suggested.Bg)
+		fmt.Println("devicestatus time: ", entry.OpenAps.IOB.Time, "iob:", entry.OpenAps.IOB.IOB, ", bg: ", entry.OpenAps.Suggested.Bg)
 	}
 	fmt.Println("total devicestatuses sent: ", count)
 	if err := cur.Err(); err != nil {
@@ -101,6 +107,7 @@ func (c MongoClient) LoadDeviceStatuses(queue chan NsEntry, limit int64, skip in
 func (c MongoClient) LoadTreatments(queue chan NsTreatment, limit int64, skip int64, ctx context.Context) {
 	defer wg.Done()
 
+	fmt.Println("LoadTreatments from MongoDB, limit: ", limit, ", skip: ", skip)
 	collection := c.db.Collection("treatments")
 	filter := bson.D{}
 
@@ -126,7 +133,7 @@ func (c MongoClient) LoadTreatments(queue chan NsTreatment, limit int64, skip in
 		if err != nil {
 			log.Fatal(err)
 		}
-
+		entry.User = c.user
 		strtime := cur.Current.Lookup("created_at").StringValue()
 		ptime, err := time.Parse(time.RFC3339, strtime)
 		if err != nil {
@@ -138,7 +145,7 @@ func (c MongoClient) LoadTreatments(queue chan NsTreatment, limit int64, skip in
 		queue <- entry
 		count++
 
-		fmt.Println("time: ", entry.CreatedAt, ", type: ", entry.EventType)
+		fmt.Println("treatment time: ", entry.CreatedAt, ", type: ", entry.EventType)
 	}
 
 	fmt.Println("total treatments sent: ", count)

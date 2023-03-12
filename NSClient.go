@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"strconv"
 	"strings"
@@ -11,6 +12,7 @@ import "github.com/go-resty/resty/v2"
 type NSClient struct {
 	nsUri   string
 	nsToken string
+	user    string
 }
 
 type nsDeviceStatusResult struct {
@@ -22,15 +24,19 @@ type nsTreatmentsResult struct {
 	Records []NsTreatment `json:"result"`
 }
 
-func NewNSClient(uri string, token string) *NSClient {
+func NewNSClient(uri string, token string, user string) *NSClient {
 	return &NSClient{
 		nsUri:   strings.TrimRight(uri, "/"),
 		nsToken: token,
+		user:    user,
 	}
 }
 
 func (c NSClient) LoadDeviceStatuses(queue chan NsEntry, limit int64, skip int64, _ context.Context) {
 	defer wg.Done()
+
+	fmt.Println("LoadDeviceStatuses from NS, limit: ", limit, ", skip: ", skip)
+
 	client := resty.New()
 
 	entries := &nsDeviceStatusResult{}
@@ -50,12 +56,18 @@ func (c NSClient) LoadDeviceStatuses(queue chan NsEntry, limit int64, skip int64
 	}
 
 	for _, entry := range entries.Records {
-		queue <- entry
+		if strings.HasPrefix(entry.Device, "openaps") {
+			entry.User = c.user
+			queue <- entry
+		}
 	}
 }
 
 func (c NSClient) LoadTreatments(queue chan NsTreatment, limit int64, skip int64, _ context.Context) {
 	defer wg.Done()
+
+	fmt.Println("LoadTreatments from NS, limit: ", limit, ", skip: ", skip)
+
 	client := resty.New()
 
 	entries := &nsTreatmentsResult{}
@@ -74,6 +86,7 @@ func (c NSClient) LoadTreatments(queue chan NsTreatment, limit int64, skip int64
 		log.Fatal(err)
 	}
 	for _, entry := range entries.Records {
+		entry.User = c.user
 		queue <- entry
 	}
 }

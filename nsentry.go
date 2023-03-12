@@ -3,6 +3,7 @@ package main
 import "time"
 
 type NsEntry struct {
+	Device  string
 	OpenAps struct {
 		Suggested struct {
 			Temp             string    `json:"temp" bson:"temp"`
@@ -52,6 +53,7 @@ type NsEntry struct {
 			Percent int `json:"percent"`
 		} `json:"battery"`
 	} `json:"pump"`
+	User string `json:"-"`
 }
 
 type NsTreatment struct {
@@ -69,4 +71,25 @@ type NsTreatment struct {
 	Reason       string    `json:"reason,omitempty"`
 	Rate         float64   `json:"rate,omitempty"`
 	Units        string    `json:"units,omitempty"`
+	User         string    `json:"-"`
+}
+
+type Config struct {
+	NsUri        string `json:"ns-uri,omitempty"`
+	NsToken      string `json:"ns-token,omitempty"`
+	MongoUri     string `json:"mongo-uri,omitempty"`
+	MongoDb      string `json:"mongo-db,omitempty"`
+	Limit        int64  `json:"limit,omitempty"`
+	Skip         int64  `json:"skip,omitempty"`
+	InfluxUri    string `json:"influx-uri,omitempty"`
+	InfluxToken  string `json:"influx-token,omitempty"`
+	InfluxOrg    string `json:"influx-org,omitempty"`
+	InfluxBucket string `json:"influx-bucket,omitempty"`
+	Imports      []struct {
+		NsUri    string `json:"ns-uri,omitempty"`
+		NsToken  string `json:"ns-token,omitempty"`
+		MongoUri string `json:"mongo-uri,omitempty"`
+		MongoDb  string `json:"mongo-db,omitempty"`
+		User     string `json:"user"`
+	} `json:"imports,omitempty"`
 }
