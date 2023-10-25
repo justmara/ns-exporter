@@ -115,9 +115,7 @@ func main() {
 			err := writeAPI.WritePoint(ctx, &point)
 			count++
 			if err != nil {
-
 				fmt.Println("error writing: ", point.Time(), ", name: ", point.Name())
-				log.Fatal(err)
 			}
 		}
 
